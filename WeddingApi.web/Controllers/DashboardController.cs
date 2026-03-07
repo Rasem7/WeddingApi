@@ -28,18 +28,34 @@ public class DashboardController : ControllerBase
         var totalClients = await _db.Clients.CountAsync();
 
         var recentBookings = await _db.Bookings
-            .Include(b => b.Client)
-            .OrderByDescending(b => b.CreatedAt)
-            .Take(5)
-            .Select(b => new {
-                b.Id,
-                groomName = b.Client.GroomName,
-                brideName = b.Client.BrideName,
-                weddingDate = b.WeddingDate,
-                b.Venue,
-                b.Status
-            })
-            .ToListAsync();
+    .Include(b => b.Client)
+    .OrderByDescending(b => b.CreatedAt)
+    .Take(5)
+    .Select(b => new {
+        b.Id,
+        b.ClientId,
+        client = new
+        {
+            id = b.Client.Id,
+            groomName = b.Client.GroomName,
+            brideName = b.Client.BrideName,
+            groomPhone = b.Client.GroomPhone,
+            budget = b.Client.Budget,
+            budgetCategory = b.Client.BudgetCategory,
+            email = b.Client.Email ?? "",
+            address = b.Client.Address ?? "",
+            createdAt = b.Client.CreatedAt
+        },
+        weddingDate = b.WeddingDate,
+        weddingTime = b.WeddingTime ?? "",
+        venue = b.Venue ?? "",
+        guestCount = b.GuestCount,
+        eventType = b.EventType,
+        status = b.Status,
+        totalAmount = b.TotalAmount,
+        createdAt = b.CreatedAt
+    })
+    .ToListAsync();
 
         return Ok(new
         {
