@@ -61,4 +61,10 @@ app.MapControllers();
 
 app.MapGet("/hash", () => BCrypt.Net.BCrypt.HashPassword("Admin@123"));
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<WeddingDbContext>();
+    db.Database.Migrate();
+}
+
 app.Run();
