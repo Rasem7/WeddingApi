@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -6,7 +6,7 @@ using WeddingApi.core.Interfaces;
 using WeddingApi.infrastructure.Data;
 using WeddingApi.infrastructure.Repositories;
 using WeddingApi.infrastructure.Services;
-
+//using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 // Controllers
@@ -52,13 +52,20 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IClientRepository, ClientRepository>();
 builder.Services.AddScoped<IBookingRepository, BookingRepository>();
 
+// swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 var app = builder.Build();
 
 app.UseCors("AllowAngular");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-
+//swagger
+app.MapGet("/", () => Results.Redirect("/swagger"));
+app.UseSwagger();
+app.UseSwaggerUI();
 app.MapGet("/hash", () => BCrypt.Net.BCrypt.HashPassword("Admin@123"));
 
 using (var scope = app.Services.CreateScope())
