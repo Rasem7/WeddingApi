@@ -12,6 +12,7 @@ namespace WeddingApi.web.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 //[Authorize]
+
 public class BookingsController : ControllerBase
 {
    
