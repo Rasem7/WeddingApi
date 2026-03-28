@@ -14,15 +14,15 @@ namespace WeddingApi.web.Controllers;
 //[Authorize]
 public class BookingsController : ControllerBase
 {
-    private readonly IBookingRepository _repo;
+   
     private readonly WeddingDbContext _Context;
     private readonly IUnitOfWorks _unitOfWork;
 
-    public BookingsController(WeddingDbContext Context , IBookingRepository repo , IUnitOfWorks unitOfWorks)
+    public BookingsController(WeddingDbContext Context , IUnitOfWorks unitOfWorks)
     {
         _Context = Context;
         _unitOfWork = unitOfWorks;
-        _repo = repo;
+        
     }
    
     [HttpGet(nameof(GetAll))]
@@ -67,39 +67,12 @@ public class BookingsController : ControllerBase
     
     [HttpGet(nameof(GetAllWithoutPaging))]
     public async Task<ActionResult<IEnumerable<Booking>>> GetAllWithoutPaging(
-      string? searchText = null,
-      string? status = null,
-      string? eventType = null)
+      )
     {
         var query = _Context.Bookings.AsQueryable();
-
-        // 🔍 Search
-        if (!string.IsNullOrWhiteSpace(searchText))
-        {
-            var search = searchText.Trim();
-
-            query = query.Where(x =>
-                (x.Status ?? "").Contains(search) ||
-                (x.Venue ?? "").Contains(search) ||
-                (x.EventType ?? "").Contains(search)
-            );
-        }
-
-        // 🎯 Filter by Status
-        if (!string.IsNullOrWhiteSpace(status))
-        {
-            query = query.Where(x => x.Status == status);
-        }
-
-        // 🎯 Filter by Event Type
-        if (!string.IsNullOrWhiteSpace(eventType))
-        {
-            query = query.Where(x => x.EventType == eventType);
-        }
-
         var bookings = await query
             .OrderByDescending(x => x.Id)
-            .ToListAsync(); // ✅ شيلنا Skip & Take
+            .ToListAsync(); 
 
         if (!bookings.Any())
             return NotFound();
@@ -144,7 +117,7 @@ public class BookingsController : ControllerBase
     [HttpGet(nameof(GetCalendar))]
     public async Task<IActionResult> GetCalendar([FromQuery] int year, [FromQuery] int month)
     {
-        var bookings = await _repo.GetCalendarAsync(year, month);
+        var bookings = await _unitOfWork.Bookings.GetCalendarAsync(year, month);
 
         var result = bookings.Select(b => new
         {
