@@ -18,7 +18,7 @@ public class BookingsController : ControllerBase
    
     private readonly WeddingDbContext _Context;
     private readonly IUnitOfWorks _unitOfWork;
-
+   
     public BookingsController(WeddingDbContext Context , IUnitOfWorks unitOfWorks)
     {
         _Context = Context;
@@ -71,6 +71,31 @@ public class BookingsController : ControllerBase
       )
     {
         var query = _Context.Bookings.AsQueryable();
+
+        // 🔍 Search
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            var search = searchText.Trim();
+
+            query = query.Where(x =>
+                (x.Status ?? "").Contains(search) ||
+                (x.Venue ?? "").Contains(search) ||
+                (x.EventType ?? "").Contains(search)
+            );
+        }
+
+        // 🎯 Filter by Status
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = query.Where(x => x.Status == status);
+        }
+
+        // 🎯 Filter by Event Type
+        if (!string.IsNullOrWhiteSpace(eventType))
+        {
+            query = query.Where(x => x.EventType == eventType);
+        }
+
         var bookings = await query
             .OrderByDescending(x => x.Id)
             .ToListAsync(); 
