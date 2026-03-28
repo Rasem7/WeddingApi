@@ -14,15 +14,13 @@ namespace WeddingApi.web.Controllers;
 //[Authorize]
 public class BookingsController : ControllerBase
 {
-   
+    private readonly IBookingRepository _repo;
     private readonly WeddingDbContext _Context;
-    private readonly IUnitOfWorks _unitOfWork;
-
-    public BookingsController(WeddingDbContext Context , IUnitOfWorks unitOfWorks)
+   
+    public BookingsController(WeddingDbContext Context , IBookingRepository repo)
     {
         _Context = Context;
-        _unitOfWork = unitOfWorks;
-        
+        _repo = repo;
     }
    
     [HttpGet(nameof(GetAll))]
@@ -67,12 +65,39 @@ public class BookingsController : ControllerBase
     
     [HttpGet(nameof(GetAllWithoutPaging))]
     public async Task<ActionResult<IEnumerable<Booking>>> GetAllWithoutPaging(
-      )
+      string? searchText = null,
+      string? status = null,
+      string? eventType = null)
     {
         var query = _Context.Bookings.AsQueryable();
+
+        // 🔍 Search
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            var search = searchText.Trim();
+
+            query = query.Where(x =>
+                (x.Status ?? "").Contains(search) ||
+                (x.Venue ?? "").Contains(search) ||
+                (x.EventType ?? "").Contains(search)
+            );
+        }
+
+        // 🎯 Filter by Status
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = query.Where(x => x.Status == status);
+        }
+
+        // 🎯 Filter by Event Type
+        if (!string.IsNullOrWhiteSpace(eventType))
+        {
+            query = query.Where(x => x.EventType == eventType);
+        }
+
         var bookings = await query
             .OrderByDescending(x => x.Id)
-            .ToListAsync(); 
+            .ToListAsync(); // ✅ شيلنا Skip & Take
 
         if (!bookings.Any())
             return NotFound();
@@ -91,7 +116,7 @@ public class BookingsController : ControllerBase
     [HttpGet(nameof(GetById))]
     public async Task<IActionResult> GetById(int id)
     {
-        var booking = await _unitOfWork.Bookings.GetByIdAsync(id);
+        var booking = await _repo.GetByIdAsync(id);
         if (booking == null) return NotFound();
 
         var result = new
@@ -117,7 +142,7 @@ public class BookingsController : ControllerBase
     [HttpGet(nameof(GetCalendar))]
     public async Task<IActionResult> GetCalendar([FromQuery] int year, [FromQuery] int month)
     {
-        var bookings = await _unitOfWork.Bookings.GetCalendarAsync(year, month);
+        var bookings = await _repo.GetCalendarAsync(year, month);
 
         var result = bookings.Select(b => new
         {
@@ -144,14 +169,14 @@ public class BookingsController : ControllerBase
             TotalAmount = dto.TotalAmount,
             Notes = dto.Notes
         };
-        var created = await _unitOfWork.Bookings.CreateAsync(booking);
+        var created = await _repo.CreateAsync(booking);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
     [HttpPost(nameof(UpdateStatus))]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] string status)
     {
-        var updated = await _unitOfWork.Bookings.UpdateStatusAsync(id, status);
+        var updated = await _repo.UpdateStatusAsync(id, status);
         return Ok(updated);
     }
 }
