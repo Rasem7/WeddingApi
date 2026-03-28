@@ -6,6 +6,7 @@ using WeddingApi.core.Interfaces;
 using WeddingApi.infrastructure.Data;
 using WeddingApi.infrastructure.Repositories;
 using WeddingApi.infrastructure.Services;
+using WeddingApi.infrastructure.UnitOfWorks;
 //using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,7 +52,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IClientRepository, ClientRepository>();
 builder.Services.AddScoped<IBookingRepository, BookingRepository>();
-
+builder.Services.AddScoped<IUnitOfWorks , UnitOfWork>();
 // swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
