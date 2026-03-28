@@ -16,10 +16,12 @@ public class BookingsController : ControllerBase
 {
     private readonly IBookingRepository _repo;
     private readonly WeddingDbContext _Context;
-   
-    public BookingsController(WeddingDbContext Context , IBookingRepository repo)
+    private readonly IUnitOfWorks _unitOfWork;
+
+    public BookingsController(WeddingDbContext Context , IBookingRepository repo , IUnitOfWorks unitOfWorks)
     {
         _Context = Context;
+        _unitOfWork = unitOfWorks;
         _repo = repo;
     }
    
@@ -116,7 +118,7 @@ public class BookingsController : ControllerBase
     [HttpGet(nameof(GetById))]
     public async Task<IActionResult> GetById(int id)
     {
-        var booking = await _repo.GetByIdAsync(id);
+        var booking = await _unitOfWork.Bookings.GetByIdAsync(id);
         if (booking == null) return NotFound();
 
         var result = new
@@ -169,14 +171,14 @@ public class BookingsController : ControllerBase
             TotalAmount = dto.TotalAmount,
             Notes = dto.Notes
         };
-        var created = await _repo.CreateAsync(booking);
+        var created = await _unitOfWork.Bookings.CreateAsync(booking);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
     [HttpPost(nameof(UpdateStatus))]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] string status)
     {
-        var updated = await _repo.UpdateStatusAsync(id, status);
+        var updated = await _unitOfWork.Bookings.UpdateStatusAsync(id, status);
         return Ok(updated);
     }
 }
