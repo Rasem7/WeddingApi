@@ -13,6 +13,7 @@ public class WeddingDbContext : DbContext
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<ServiceProvider> ServiceProviders => Set<ServiceProvider>();
+    public DbSet<ServiceProviderMedia> ServiceProviderMedias { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -60,5 +61,12 @@ public class WeddingDbContext : DbContext
     new ServiceProvider { Id = 6, Name = "موسيقار بند", Category = "الموسيقى", Location = "وسط البلد، القاهرة", Rating = 4.7, ReviewCount = 98, PriceFrom = 8000, Phone = "01556789012", Description = "فرقة موسيقية متخصصة في حفلات الزفاف", IsActive = true },
     new ServiceProvider { Id = 7, Name = "جلام بيوتي", Category = "كوافير ومكياج", Location = "المعادي، القاهرة", Rating = 4.8, ReviewCount = 203, PriceFrom = 3000, Phone = "01667890123", Description = "متخصصون في إطلالات العرايس", IsActive = true }
 );
+        modelBuilder.Entity<ServiceProviderMedia>()
+    .HasOne(m => m.ServiceProvider)
+    .WithMany()
+    .HasForeignKey(m => m.ServiceProviderId)
+    .OnDelete(DeleteBehavior.Cascade);
     }
+
+
 }

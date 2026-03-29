@@ -1,7 +1,8 @@
-﻿using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using WeddingApi.core.Interfaces;
 using WeddingApi.infrastructure.Data;
 using WeddingApi.infrastructure.Repositories;
@@ -52,6 +53,12 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IClientRepository, ClientRepository>();
 builder.Services.AddScoped<IBookingRepository, BookingRepository>();
+
+builder.Services.Configure<FormOptions>(o =>
+{
+    o.MultipartBodyLengthLimit = 100_000_000; // 100MB
+});
+
 builder.Services.AddScoped<IUnitOfWorks , UnitOfWork>();
 // swagger
 builder.Services.AddEndpointsApiExplorer();
