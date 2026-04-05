@@ -3,10 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using WeddingApi.core.Entities;
 
 namespace WeddingApi.core.Interfaces
 {
-	internal class IServiceProviderRepository
+	public interface IServiceProviderRepository
 	{
+		Task<ServiceProvider?> GetByIdAsync(int id);
+		Task<IEnumerable<ServiceProvider>> GetActiveByCategoryAsync(string? category);
+		Task AddAsync(ServiceProvider sp);
+		void Update(ServiceProvider sp);
 	}
 }

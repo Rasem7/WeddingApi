@@ -13,10 +13,13 @@ namespace WeddingApi.infrastructure.UnitOfWorks
     {
         private readonly WeddingDbContext _context;
 
-        private IBookingRepository _bookingRepository;
+		// Private fields for lazy initialization
+		private IBookingRepository _bookingRepository;
         private IClientRepository _clientRepository;
+        private IServiceProviderRepository _serviceProviderRepository;
 
-        public UnitOfWork(WeddingDbContext context)
+
+		public UnitOfWork(WeddingDbContext context)
         {
             _context = context;
         }
@@ -41,14 +44,24 @@ namespace WeddingApi.infrastructure.UnitOfWorks
             }
         }
 
-        public async Task<int> CompleteAsync()
+		public IServiceProviderRepository ServiceProviders
         {
-            return await _context.SaveChangesAsync();
-        }
+			get
+			{
+				if (_serviceProviderRepository == null)
+					_serviceProviderRepository = new ServiceProviderRepository(_context); // Lazy init
+				return _serviceProviderRepository;
+			}
+		}
+
+		public async Task<int> CompleteAsync()
+        {
+            return await _context.SaveChangesAsync(); // Save all changes in one transaction
+		}
 
         public void Dispose()
         {
-            _context.Dispose();
-        }
+            _context.Dispose(); // Close DbContext to release DB connections
+		}
     }
 }

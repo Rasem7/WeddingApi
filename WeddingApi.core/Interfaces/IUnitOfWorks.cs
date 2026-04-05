@@ -11,7 +11,7 @@ namespace WeddingApi.core.Interfaces
     {
         IBookingRepository Bookings { get; }
         IClientRepository Clients { get; }
-
-        Task<int> CompleteAsync();
+		IServiceProviderRepository ServiceProviders { get; } // Repository for ServiceProvider entities
+		Task<int> CompleteAsync();
     }
 }
