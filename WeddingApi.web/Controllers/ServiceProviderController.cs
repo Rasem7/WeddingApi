@@ -9,8 +9,9 @@ namespace WeddingApi.web.Controllers;
 [Route("api/[controller]")]
 public class ServiceProviderController : ControllerBase
 {
-    private readonly WeddingDbContext _db;
-    public ServiceProviderController(WeddingDbContext db) => _db = db;
+    //private readonly WeddingDbContext _db;
+	private readonly IUnitOfWork _unit;
+	public ServiceProviderController(WeddingDbContext db) => _db = db;
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] string? category)
