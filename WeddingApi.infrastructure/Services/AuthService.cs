@@ -1,9 +1,10 @@
-﻿using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using WeddingApi.core.DTOs.Auth;
 using WeddingApi.core.Entities;
 using WeddingApi.core.Interfaces;
@@ -13,33 +14,39 @@ namespace WeddingApi.infrastructure.Services;
 
 public class AuthService : IAuthService
 {
-    private readonly WeddingDbContext _db;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly IConfiguration _config;
     private readonly WeddingDbContext _db;
 
-    public AuthService(WeddingDbContext db, IConfiguration config)
+    public AuthService(
+        UserManager<ApplicationUser> userManager,
+        SignInManager<ApplicationUser> signInManager,
+        IConfiguration config,
+        WeddingDbContext db)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _config = config;
+        _db = db;
     }
 
-    public async Task<AuthResponseDto?> LoginAsync(LoginDto dto)
+    // ===== LOGIN =====
+    public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == dto.Username);
-        if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
-            return null;
+        var user = await _userManager.FindByEmailAsync(dto.Email)
+                   ?? await _userManager.FindByNameAsync(dto.Email);
 
-        var expiry = dto.RememberMe
-            ? DateTime.UtcNow.AddDays(30)
-            : DateTime.UtcNow.AddHours(8);
+        if (user == null)
+            throw new UnauthorizedAccessException("البريد الإلكتروني أو كلمة المرور غلط");
 
-        var token = GenerateToken(user.Username, user.Role, expiry);
+        if (!user.IsActive)
+            throw new UnauthorizedAccessException("الحساب موقوف");
 
         if (user.UserType == "provider")
         {
             var providerProfile = await _db.ServiceProviders
-                .FirstOrDefaultAsync(s => s.UserId == user.Id);
+                .FirstOrDefaultAsync(s => s.Id == user.Id);
             if (providerProfile?.Status == "pending")
                 throw new UnauthorizedAccessException("طلب الاشتراك لسه قيد المراجعة");
             if (providerProfile?.Status == "rejected")
@@ -62,31 +69,181 @@ public class AuthService : IAuthService
 
         if (user.UserType == "client")
         {
-            var client = await _db.Clients.FirstOrDefaultAsync(c => c.UserId == user.Id);
+            var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == user.Id);
             clientId = client?.Id;
         }
         else if (user.UserType == "provider")
         {
-            var provider = await _db.ServiceProviders.FirstOrDefaultAsync(s => s.UserId == user.Id);
+            var provider = await _db.ServiceProviders.FirstOrDefaultAsync(s => s.Id == user.Id);
             serviceProviderId = provider?.Id;
         }
 
         return new AuthResponseDto
         {
             Token = token,
-            ExpiresAt = expiry,
-            Username = user.Username,
-            Role = user.Role
+            ExpiresAt = DateTime.UtcNow.AddDays(dto.RememberMe ? 30 : 1),
+            Username = user.FullName,
+            Email = user.Email!,
+            Role = roles.FirstOrDefault() ?? string.Empty,            
         };
     }
+
+    // ===== REGISTER CLIENT =====
+    public async Task<AuthResponseDto> RegisterClientAsync(RegisterClientDto dto)
+    {
+        if (await _userManager.FindByEmailAsync(dto.Email) != null)
+            throw new Exception("البريد الإلكتروني مستخدم بالفعل");
+
+        var user = new ApplicationUser
+        {
+            UserName = dto.UserName,
+            Email = dto.Email,
+            FullName = dto.FullName,
+            PhoneNumber = dto.Phone,
+            UserType = "client",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var result = await _userManager.CreateAsync(user, dto.Password);
+        if (!result.Succeeded)
+            throw new Exception(string.Join("، ", result.Errors.Select(e => e.Description)));
+
+        await _userManager.AddToRoleAsync(user, "Client");
+
+        var client = new Client
+        {
+            Id = user.Id,
+            Gender = dto.Gender,
+            NationalId = dto.NationalId,
+            GroomName = dto.Gender == "groom" ? dto.FullName : null,
+            BrideName = dto.Gender == "bride" ? dto.FullName : null,
+            GroomPhone = dto.Gender == "groom" ? dto.Phone : null,
+            BridePhone = dto.Gender == "bride" ? dto.Phone : null,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _db.Clients.Add(client);
+        await _db.SaveChangesAsync();
+
+        if (!string.IsNullOrEmpty(dto.NationalId))
+            await LinkPartnerAsync(client, dto.NationalId);
+
+        var roles = await _userManager.GetRolesAsync(user);
+        var token = GenerateToken(user, roles, false);
+
+        return new AuthResponseDto
+        {
+            Token = token,
+            ExpiresAt = DateTime.UtcNow.AddDays(1),
+            Username = user.FullName,
+            Email = user.Email!,
+            Role = "Client",
+            UserType = "client",
+            Id = user.Id,
+            ClientId = client.Id
+        };
+    }
+
+    // ===== REGISTER PROVIDER =====
+    public async Task<string> RegisterProviderAsync(RegisterProviderDto dto)
+    {
+        if (await _userManager.FindByEmailAsync(dto.Email) != null)
+            throw new Exception("البريد الإلكتروني مستخدم بالفعل");
+
+        var user = new ApplicationUser
+        {
+            UserName = dto.Email,
+            Email = dto.Email,
+            FullName = dto.FullName,
+            PhoneNumber = dto.Phone,
+            UserType = "provider",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var result = await _userManager.CreateAsync(user, dto.Password);
+        if (!result.Succeeded)
+            throw new Exception(string.Join("، ", result.Errors.Select(e => e.Description)));
+
+        await _userManager.AddToRoleAsync(user, "Provider");
+
+        var provider = new ServiceProvider
+        {
+            Id = user.Id,
+            BusinessName = dto.BusinessName,
+            Category = dto.Category,
+            Status = "pending",
+            Phone = dto.Phone,
+            Rating = 0,
+            ReviewCount = 0,
+            PriceFrom = 0
+        };
+
+        _db.ServiceProviders.Add(provider);
+        await _db.SaveChangesAsync();
+
+        return "تم تسجيل طلبك بنجاح، في انتظار موافقة الإدارة";
+    }
+
+    // ===== GET PROFILE =====
+    public async Task<object> GetProfileAsync(int Id)
+    {
+        var user = await _userManager.FindByIdAsync(Id.ToString())
+                   ?? throw new Exception("المستخدم مش موجود");
+
+        if (user.UserType == "client")
+        {
+            var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == Id);
+            return new
+            {
+                id = user.Id,
+                user.FullName,
+                email = user.Email,
+                user.PhoneNumber,
+                user.UserType,
+                user.IsActive,
+                clientId = client == null ? (int?)null : client.Id,
+                gender = client == null ? null : client.Gender,
+                nationalId = client == null ? null : client.NationalId,
+                linkedPartnerId = client == null ? (int?)null : client.LinkedPartnerId,
+                budget = client == null ? (decimal?)null : client.Budget,
+                groomName = client == null ? null : client.GroomName,
+                brideName = client == null ? null : client.BrideName,
+                groomPhone = client == null ? null : client.GroomPhone,
+                bridePhone = client == null ? null : client.BridePhone
+            };
+        }
+        else if (user.UserType == "provider")
+        {
+            var provider = await _db.ServiceProviders.FirstOrDefaultAsync(s => s.Id == Id);
+            return new
+            {
+                id = user.Id,
+                user.FullName,
+                email = user.Email,
+                user.PhoneNumber,
+                user.UserType,
+                user.IsActive,
+                serviceProviderId = provider == null ? (int?)null : provider.Id,
+                businessName = provider == null ? null : provider.BusinessName,
+                category = provider == null ? null : provider.Category,
+                status = provider == null ? null : provider.Status,
+                location = provider == null ? null : provider.Location,
+                description = provider == null ? null : provider.Description,
+                phone = provider == null ? null : provider.Phone,
+                rating = provider != null ? provider.Rating: 0.00,
+                priceFrom = provider == null ? (decimal?)null : provider.PriceFrom
+            };
+        }
 
         return new { id = user.Id, user.FullName, email = user.Email, user.UserType, user.IsActive };
     }
 
     // ===== UPDATE PROFILE =====
-    public async Task<object> UpdateProfileAsync(int userId, UpdateProfileDto dto)
+    public async Task<object> UpdateProfileAsync(int Id, UpdateProfileDto dto)
     {
-        var user = await _userManager.FindByIdAsync(userId.ToString())
+        var user = await _userManager.FindByIdAsync(Id.ToString())
                    ?? throw new Exception("المستخدم مش موجود");
 
         user.FullName = dto.FullName;
@@ -95,7 +252,7 @@ public class AuthService : IAuthService
 
         if (user.UserType == "client")
         {
-            var client = await _db.Clients.FirstOrDefaultAsync(c => c.UserId == userId);
+            var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == Id);
             if (client != null)
             {
                 if (!string.IsNullOrEmpty(dto.NationalId))
@@ -105,7 +262,7 @@ public class AuthService : IAuthService
         }
         else if (user.UserType == "provider")
         {
-            var provider = await _db.ServiceProviders.FirstOrDefaultAsync(s => s.UserId == userId);
+            var provider = await _db.ServiceProviders.FirstOrDefaultAsync(s => s.Id == Id);
             if (provider != null)
             {
                 provider.Location = dto.Location ?? provider.Location;
@@ -115,13 +272,13 @@ public class AuthService : IAuthService
             }
         }
 
-        return await GetProfileAsync(userId);
+        return await GetProfileAsync(Id);
     }
 
     // ===== CHANGE PASSWORD =====
-    public async Task ChangePasswordAsync(int userId, ChangePasswordDto dto)
+    public async Task ChangePasswordAsync(int Id, ChangePasswordDto dto)
     {
-        var user = await _userManager.FindByIdAsync(userId.ToString())
+        var user = await _userManager.FindByIdAsync(Id.ToString())
                    ?? throw new Exception("المستخدم مش موجود");
 
         var result = await _userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
@@ -138,7 +295,7 @@ public class AuthService : IAuthService
             .Select(s => (object)new
             {
                 id = s.Id,
-                userId = s.UserId,
+                Id = s.Id,
                 fullName = s.User.FullName,
                 email = s.User.Email,
                 userPhone = s.User.PhoneNumber,
@@ -154,9 +311,9 @@ public class AuthService : IAuthService
     }
 
     // ===== APPROVE PROVIDER =====
-    public async Task<bool> ApproveProviderAsync(int userId)
+    public async Task<bool> ApproveProviderAsync(int Id)
     {
-        var provider = await _db.ServiceProviders.FirstOrDefaultAsync(s => s.UserId == userId);
+        var provider = await _db.ServiceProviders.FirstOrDefaultAsync(s => s.Id == Id);
         if (provider == null) return false;
         provider.Status = "approved";
         await _db.SaveChangesAsync();
@@ -164,9 +321,9 @@ public class AuthService : IAuthService
     }
 
     // ===== REJECT PROVIDER =====
-    public async Task<bool> RejectProviderAsync(int userId)
+    public async Task<bool> RejectProviderAsync(int Id)
     {
-        var provider = await _db.ServiceProviders.FirstOrDefaultAsync(s => s.UserId == userId);
+        var provider = await _db.ServiceProviders.FirstOrDefaultAsync(s => s.Id == Id);
         if (provider == null) return false;
         provider.Status = "rejected";
         await _db.SaveChangesAsync();

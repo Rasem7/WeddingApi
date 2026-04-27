@@ -19,7 +19,7 @@ public class WeddingDbContext : IdentityDbContext<ApplicationUser, IdentityRole<
     {
         base.OnModelCreating(modelBuilder);
         // ApplicationUser config
-        modelBuilder.Entity<ApplicationUser>()
+        modelBuilder.Entity<Client>()
             .HasIndex(u => u.NationalId);
 
         // Client → Bookings

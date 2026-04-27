@@ -84,7 +84,7 @@ public class ClientsController : ControllerBase
             client.GroomName,
             client.GroomPhone,
             client.BridePhone,
-            client.Email,
+            client.User.Email,
            
         };
 
@@ -100,9 +100,7 @@ public class ClientsController : ControllerBase
             GroomName = dto.GroomName,
             BrideName = dto.BrideName,
             GroomPhone = dto.GroomPhone,
-            BridePhone = dto.BridePhone,
-            Email = dto.Email,
-            Address = dto.Address,
+            BridePhone = dto.BridePhone,            
             Budget = dto.Budget
         };
         var created = await _unitOfWork.Clients.CreateAsync(client);
@@ -118,8 +116,6 @@ public class ClientsController : ControllerBase
         existing.BrideName = dto.BrideName;
         existing.GroomPhone = dto.GroomPhone;
         existing.BridePhone = dto.BridePhone;
-        existing.Email = dto.Email;
-        existing.Address = dto.Address;
         existing.Budget = dto.Budget;
 
         var updated = await _unitOfWork.Clients.UpdateAsync(existing);

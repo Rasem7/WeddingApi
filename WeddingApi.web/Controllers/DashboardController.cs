@@ -42,9 +42,6 @@ public class DashboardController : ControllerBase
             groomPhone = b.Client.GroomPhone,
             budget = b.Client.Budget,
             budgetCategory = b.Client.BudgetCategory,
-            email = b.Client.Email ?? "",
-            address = b.Client.Address ?? "",
-            createdAt = b.Client.CreatedAt
         },
         weddingDate = b.WeddingDate,
         weddingTime = b.WeddingTime ?? "",

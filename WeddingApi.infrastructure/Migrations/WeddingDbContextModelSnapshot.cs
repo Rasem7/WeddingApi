@@ -187,11 +187,9 @@ namespace WeddingApi.infrastructure.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("FullName")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Gender")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsActive")
@@ -227,7 +225,6 @@ namespace WeddingApi.infrastructure.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("ProviderStatus")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SecurityStamp")
@@ -244,7 +241,6 @@ namespace WeddingApi.infrastructure.Migrations
                         .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("UserType")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
@@ -258,6 +254,10 @@ namespace WeddingApi.infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
+
+                    b.HasIndex("ServiceProviderId")
+                        .IsUnique()
+                        .HasFilter("[ServiceProviderId] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
                 });
@@ -277,7 +277,6 @@ namespace WeddingApi.infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("EventType")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("GuestCount")
@@ -287,7 +286,6 @@ namespace WeddingApi.infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Status")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("TotalAmount")
@@ -322,7 +320,6 @@ namespace WeddingApi.infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("BrideName")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("BridePhone")
@@ -333,7 +330,6 @@ namespace WeddingApi.infrastructure.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("BudgetCategory")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
@@ -343,11 +339,9 @@ namespace WeddingApi.infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("GroomName")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("GroomPhone")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
@@ -371,7 +365,6 @@ namespace WeddingApi.infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Method")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Notes")
@@ -396,7 +389,6 @@ namespace WeddingApi.infrastructure.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Category")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Description")
@@ -406,11 +398,9 @@ namespace WeddingApi.infrastructure.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("Location")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Phone")
@@ -426,6 +416,12 @@ namespace WeddingApi.infrastructure.Migrations
 
                     b.Property<int>("ReviewCount")
                         .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -444,18 +440,15 @@ namespace WeddingApi.infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("MediaType")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PublicId")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("ServiceProviderId")
                         .HasColumnType("int");
 
                     b.Property<string>("Url")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
@@ -516,6 +509,13 @@ namespace WeddingApi.infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("WeddingApi.core.Entities.ApplicationUser", b =>
+                {
+                    b.HasOne("WeddingApi.core.Entities.ServiceProvider", null)
+                        .WithOne("User")
+                        .HasForeignKey("WeddingApi.core.Entities.ApplicationUser", "ServiceProviderId");
+                });
+
             modelBuilder.Entity("WeddingApi.core.Entities.Booking", b =>
                 {
                     b.HasOne("WeddingApi.core.Entities.Client", "Client")
@@ -557,6 +557,11 @@ namespace WeddingApi.infrastructure.Migrations
             modelBuilder.Entity("WeddingApi.core.Entities.Client", b =>
                 {
                     b.Navigation("Bookings");
+                });
+
+            modelBuilder.Entity("WeddingApi.core.Entities.ServiceProvider", b =>
+                {
+                    b.Navigation("User");
                 });
 #pragma warning restore 612, 618
         }
