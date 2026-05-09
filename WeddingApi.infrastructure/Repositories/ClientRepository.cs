@@ -26,7 +26,7 @@ public class ClientRepository : IClientRepository
 
         var total = await query.CountAsync();
         var data = await query
-            .OrderByDescending(c => c.CreatedAt)
+            .OrderByDescending(c => c.User.CreatedAt)
             .Skip((q.Page - 1) * q.PageSize)
             .Take(q.PageSize)
             .ToListAsync();

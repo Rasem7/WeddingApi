@@ -7,7 +7,7 @@
         public Booking Booking { get; set; } = null!;
         public decimal Amount { get; set; }
         public string Method { get; set; } = "Cash";
-        public string? Notes { get; set; }
+        public string Notes { get; set; }
         public DateTime PaidAt { get; set; } = DateTime.UtcNow;
     }
 }
