@@ -1,4 +1,5 @@
 ﻿using WeddingApi.core.DTOs.Auth;
+using WeddingApi.Core.DTOs.Auth;
 
 namespace WeddingApi.core.Interfaces
 {

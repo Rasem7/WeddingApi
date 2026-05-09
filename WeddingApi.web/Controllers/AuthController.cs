@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using WeddingApi.core.DTOs.Auth;
 using WeddingApi.core.Interfaces;
+using WeddingApi.Core.DTOs.Auth;
 
 namespace WeddingApi.web.Controllers;
 
