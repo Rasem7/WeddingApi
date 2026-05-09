@@ -1,9 +1,12 @@
-﻿namespace WeddingApi.core.Entities
+﻿using System;
+using System.Collections.Generic;
+
+namespace WeddingApi.core.Entities
 {
     public class ServiceProvider
     {
         public int Id { get; set; }
-        public string UserId { get; set; }
+        public int UserId { get; set; }
         public string Name { get; set; }
         public string Category { get; set; }
         public string Location { get; set; }
@@ -17,5 +20,8 @@
         public bool IsActive { get; set; } = true;
         public string ProviderStatus { get; set; } = "approved"; // pending, approved, rejected
         public ApplicationUser User { get; set; } // Navigation property to ApplicationUser
+
+        // Navigation property for related media items
+        public virtual ICollection<ServiceProviderMedia> Media { get; set; } = new List<ServiceProviderMedia>();
     }
 }

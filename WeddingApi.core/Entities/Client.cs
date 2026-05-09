@@ -3,7 +3,7 @@
     public class Client
     {
         public int Id { get; set; }
-        public string UserId { get; set; }
+        public int UserId { get; set; }
         public string GroomName { get; set; } = string.Empty;
         public string BrideName { get; set; } = string.Empty;
         public string GroomPhone { get; set; } = string.Empty;
