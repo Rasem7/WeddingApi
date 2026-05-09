@@ -11,6 +11,9 @@ using WeddingApi.infrastructure.Repositories;
 using WeddingApi.infrastructure.Services;
 using WeddingApi.infrastructure.UnitOfWorks;
 
+// NOTE: If you still get CS0234 for Microsoft.OpenApi.Models, ensure the Swagger/OpenAPI package is referenced:
+// dotnet add package Swashbuckle.AspNetCore
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ===== Controllers =====
@@ -33,7 +36,7 @@ builder.Services.AddDbContext<WeddingDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
 // ===== Identity =====
-builder.Services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>
+builder.Services.AddIdentityCore<ApplicationUser>(options =>
 {
     options.Password.RequireDigit = true;
     options.Password.RequireLowercase = true;
@@ -43,23 +46,9 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>
     options.Lockout.MaxFailedAccessAttempts = 5;
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
 })
+.AddRoles<IdentityRole<int>>()
 .AddEntityFrameworkStores<WeddingDbContext>()
 .AddDefaultTokenProviders();
-
-// ===== Override Identity Cookie to return 401 =====
-builder.Services.ConfigureApplicationCookie(options =>
-{
-    options.Events.OnRedirectToLogin = ctx =>
-    {
-        ctx.Response.StatusCode = 401;
-        return Task.CompletedTask;
-    };
-    options.Events.OnRedirectToAccessDenied = ctx =>
-    {
-        ctx.Response.StatusCode = 403;
-        return Task.CompletedTask;
-    };
-});
 
 // ===== JWT Auth =====
 builder.Services.AddAuthentication(options =>
@@ -79,12 +68,17 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+                                       Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
     };
 });
 
 builder.Services.AddAuthorization();
 
+// ===== Swagger =====
+builder.Services.AddEndpointsApiExplorer();
+// ===== Swagger =====
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 // ===== Dependency Injection =====
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IClientRepository, ClientRepository>();
@@ -94,36 +88,30 @@ builder.Services.AddScoped<IUnitOfWorks, UnitOfWork>();
 // ===== File Upload =====
 builder.Services.Configure<FormOptions>(o =>
 {
-    o.MultipartBodyLengthLimit = 100_000_000; // 100MB
+    o.MultipartBodyLengthLimit = 100_000_000;
 });
-
-// ===== Swagger =====
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// ===== Middleware =====
+// ===== Middleware — الترتيب مهم جداً =====
 app.UseCors("AllowAngular");
+app.UseSwagger();
+app.UseSwaggerUI();
+app.MapGet("/", () => Results.Redirect("/swagger"));
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// ===== Swagger =====
-app.MapGet("/", () => Results.Redirect("/swagger"));
-app.UseSwagger();
-app.UseSwaggerUI();
-
 app.MapGet("/hash", () => BCrypt.Net.BCrypt.HashPassword("Admin@123"));
 
-// ===== Migrations (الأول) =====
+// ===== Migrations =====
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<WeddingDbContext>();
     db.Database.EnsureCreated();
 }
 
-// ===== Seed Data (التاني) =====
+// ===== Seed Data =====
 using (var scope = app.Services.CreateScope())
 {
     await DbInitializer.SeedAsync(scope.ServiceProvider);

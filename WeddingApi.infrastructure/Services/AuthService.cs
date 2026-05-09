@@ -8,6 +8,7 @@ using System.Text;
 using WeddingApi.core.DTOs.Auth;
 using WeddingApi.core.Entities;
 using WeddingApi.core.Interfaces;
+using WeddingApi.Core.DTOs.Auth;
 using WeddingApi.infrastructure.Data;
 
 namespace WeddingApi.infrastructure.Services;
@@ -15,18 +16,17 @@ namespace WeddingApi.infrastructure.Services;
 public class AuthService : IAuthService
 {
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly SignInManager<ApplicationUser> _signInManager;
+    //private readonly SignInManager<ApplicationUser> _signInManager; SignInManager<ApplicationUser> signInManager,  _signInManager = signInManager;
+
     private readonly IConfiguration _config;
     private readonly WeddingDbContext _db;
 
     public AuthService(
-        UserManager<ApplicationUser> userManager,
-        SignInManager<ApplicationUser> signInManager,
+        UserManager<ApplicationUser> userManager,       
         IConfiguration config,
         WeddingDbContext db)
     {
         _userManager = userManager;
-        _signInManager = signInManager;
         _config = config;
         _db = db;
     }
@@ -53,13 +53,17 @@ public class AuthService : IAuthService
                 throw new UnauthorizedAccessException("تم رفض طلب اشتراكك");
         }
 
-        var result = await _signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: true);
-
-        if (result.IsLockedOut)
+        if (await _userManager.IsLockedOutAsync(user))
             throw new UnauthorizedAccessException("الحساب مقفول مؤقتاً بسبب محاولات كثيرة");
 
-        if (!result.Succeeded)
+        var passwordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
+        if (!passwordValid)
+        {
+            await _userManager.AccessFailedAsync(user);
             throw new UnauthorizedAccessException("البريد الإلكتروني أو كلمة المرور غلط");
+        }
+
+        await _userManager.ResetAccessFailedCountAsync(user);
 
         var roles = await _userManager.GetRolesAsync(user);
         var token = GenerateToken(user, roles, dto.RememberMe);
@@ -82,11 +86,68 @@ public class AuthService : IAuthService
         {
             Token = token,
             ExpiresAt = DateTime.UtcNow.AddDays(dto.RememberMe ? 30 : 1),
-            Username = user.FullName,
+            FullName = user.FullName,
             Email = user.Email!,
-            Role = roles.FirstOrDefault() ?? string.Empty,            
+            UserType = user.UserType,
+            UserId = user.Id
         };
     }
+    /* public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
+     {
+         var user = await _userManager.FindByEmailAsync(dto.Email)
+                    ?? await _userManager.FindByNameAsync(dto.Email);
+
+         if (user == null)
+             throw new UnauthorizedAccessException("البريد الإلكتروني أو كلمة المرور غلط");
+
+         if (!user.IsActive)
+             throw new UnauthorizedAccessException("الحساب موقوف");
+
+         if (user.UserType == "provider")
+         {
+             var providerProfile = await _db.ServiceProviders
+                 .FirstOrDefaultAsync(s => s.Id == user.Id);
+             if (providerProfile?.Status == "pending")
+                 throw new UnauthorizedAccessException("طلب الاشتراك لسه قيد المراجعة");
+             if (providerProfile?.Status == "rejected")
+                 throw new UnauthorizedAccessException("تم رفض طلب اشتراكك");
+         }
+
+         var result = await _signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: true);
+
+         if (result.IsLockedOut)
+             throw new UnauthorizedAccessException("الحساب مقفول مؤقتاً بسبب محاولات كثيرة");
+
+         if (!result.Succeeded)
+             throw new UnauthorizedAccessException("البريد الإلكتروني أو كلمة المرور غلط");
+
+         var roles = await _userManager.GetRolesAsync(user);
+         var token = GenerateToken(user, roles, dto.RememberMe);
+
+         int? clientId = null;
+         int? serviceProviderId = null;
+
+         if (user.UserType == "client")
+         {
+             var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == user.Id);
+             clientId = client?.Id;
+         }
+         else if (user.UserType == "provider")
+         {
+             var provider = await _db.ServiceProviders.FirstOrDefaultAsync(s => s.Id == user.Id);
+             serviceProviderId = provider?.Id;
+         }
+
+         return new AuthResponseDto
+         {
+             Token = token,
+             ExpiresAt = DateTime.UtcNow.AddDays(dto.RememberMe ? 30 : 1),
+             FullName = user.FullName,
+             Email = user.Email!,
+             UserType = user.UserType,
+             UserId = user.Id
+         };
+     }*/
 
     // ===== REGISTER CLIENT =====
     public async Task<AuthResponseDto> RegisterClientAsync(RegisterClientDto dto)
@@ -136,11 +197,10 @@ public class AuthService : IAuthService
         {
             Token = token,
             ExpiresAt = DateTime.UtcNow.AddDays(1),
-            Username = user.FullName,
+            FullName = user.FullName,
             Email = user.Email!,
-            Role = "Client",
             UserType = "client",
-            Id = user.Id,
+            UserId = user.Id,
             ClientId = client.Id
         };
     }

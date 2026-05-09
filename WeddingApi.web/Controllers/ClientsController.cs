@@ -1,9 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using WeddingApi.core.Common;
-using WeddingApi.core.DTOs.Bookings;
-using WeddingApi.core.DTOs.Clients;
 using WeddingApi.core.Entities;
 using WeddingApi.core.Interfaces;
 using WeddingApi.infrastructure.Data;
@@ -29,7 +25,7 @@ public class ClientsController : ControllerBase
     public async Task<ActionResult<IEnumerable<Client>>> GetAll(
        int pageNumber = 1,
        int pageSize = 10,
-       string? searchText = null
+       string searchText = null
        )
     {
         var query = _Context.Clients.AsQueryable();

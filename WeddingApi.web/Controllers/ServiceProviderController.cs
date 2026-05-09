@@ -20,7 +20,7 @@ public class ServiceProviderController : ControllerBase
 	}
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? category)
+    public async Task<IActionResult> GetAll([FromQuery] string category)
     {
 		/*var query = _db.ServiceProviders.Where(v => v.IsActive);
         if (!string.IsNullOrEmpty(category) && category != "الكل")

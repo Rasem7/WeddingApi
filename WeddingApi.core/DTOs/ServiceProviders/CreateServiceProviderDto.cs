@@ -1,41 +1,20 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace WeddingApi.Core.DTOs.Auth
+namespace WeddingApi.core.DTOs.ServiceProviders
 {
-    public class RegisterProviderDto
+    public class CreateServiceProviderDto
     {
-        [Required(ErrorMessage = "Full name is required.")]
-        [StringLength(100, MinimumLength = 3, ErrorMessage = "FullName must be between 3 and 100 characters.")]
-        [RegularExpression(@"^[\p{L}\s\-']+$",
-            ErrorMessage = "FullName can only contain letters, spaces, hyphens, and apostrophes.")]
-        public string FullName { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Email is required.")]
-        [EmailAddress(ErrorMessage = "Invalid email format.")]
-        [StringLength(256, ErrorMessage = "Email cannot exceed 256 characters.")]
-        public string Email { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Password is required.")]
-        [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be between 6 and 100 characters.")]
-        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$",
-            ErrorMessage = "Password must contain at least one uppercase, one lowercase, one digit, and one special character.")]
-        public string Password { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Confirm password is required.")]
-        [Compare("Password", ErrorMessage = "Passwords do not match.")]
-        public string ConfirmPassword { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Name is required.")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Name must be between 2 and 100 characters.")]
+        [RegularExpression(@"^[\p{L}0-9\s\-'&.]+$",
+            ErrorMessage = "Name can only contain letters, digits, spaces, hyphens, ampersands, and dots.")]
+        public string Name { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Business name is required.")]
         [StringLength(150, MinimumLength = 2, ErrorMessage = "BusinessName must be between 2 and 150 characters.")]
         [RegularExpression(@"^[\p{L}0-9\s\-'&.()]+$",
             ErrorMessage = "BusinessName can only contain letters, digits, spaces, hyphens, ampersands, dots, and parentheses.")]
         public string BusinessName { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Name is required.")]
-        [StringLength(100, MinimumLength = 2, ErrorMessage = "Name must be between 2 and 100 characters.")]
-        [RegularExpression(@"^[\p{L}0-9\s\-'&.]+$",
-            ErrorMessage = "Name can only contain letters, digits, spaces, hyphens, ampersands, and dots.")]
-        public string Name { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Category is required.")]
         [RegularExpression(@"^(Photography|Catering|Decoration|Music|Venue|Transportation|Beauty|Clothing|Cake|Invitation|Other)$",
@@ -62,11 +41,7 @@ namespace WeddingApi.Core.DTOs.Auth
 
         [Required(ErrorMessage = "PriceFrom is required.")]
         [Range(0.01, 99999999.99, ErrorMessage = "PriceFrom must be between 0.01 and 99,999,999.99.")]
+        [DataType(DataType.Currency)]
         public decimal PriceFrom { get; set; }
-
-        [StringLength(250, ErrorMessage = "Address cannot exceed 250 characters.")]
-        [RegularExpression(@"^[\p{L}0-9\s,.\-#/()]+$",
-            ErrorMessage = "Address contains invalid characters.")]
-        public string Address { get; set; } = string.Empty;
     }
 }

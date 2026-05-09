@@ -30,9 +30,9 @@ public class BookingsController : ControllerBase
     public async Task<ActionResult<IEnumerable<Booking>>> GetAll(
         int pageNumber = 1,
         int pageSize = 10,
-        string? searchText = null,
-        string? status = null,
-        string? eventType = null)
+        string searchText = null,
+        string status = null,
+        string eventType = null)
     {
         var query = _Context.Bookings.AsQueryable();
 
