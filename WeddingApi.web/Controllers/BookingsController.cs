@@ -11,8 +11,7 @@ namespace WeddingApi.web.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-//[Authorize]
-
+[Authorize]
 public class BookingsController : ControllerBase
 {
    
@@ -133,7 +132,11 @@ public class BookingsController : ControllerBase
 
         return Ok(result);
     }
+    // ملحوظة: الحجز مبدئيًا مسموح لأي عميل/أدمن/مشرف. التحسين المستقبلي المطلوب:
+    // اشتقاق ClientId من التوكن نفسه (User.FindFirstValue) بدل قبوله في الـ Body،
+    // عشان نمنع عميل يعمل حجز باسم عميل تاني.
     [HttpPost(nameof(Create))]
+    [Authorize(Roles = "Client,Admin,Supervisor")]
     public async Task<IActionResult> Create(CreateBookingDto dto)
     {
         var booking = new Booking
@@ -152,6 +155,7 @@ public class BookingsController : ControllerBase
     }
 
     [HttpPost(nameof(UpdateStatus))]
+    [Authorize(Roles = "Admin,Supervisor,Provider")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] string status)
     {
         var updated = await _unitOfWork.Bookings.UpdateStatusAsync(id, status);

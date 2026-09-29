@@ -47,9 +47,9 @@ public class AuthService : IAuthService
         {
             var providerProfile = await _db.ServiceProviders
                 .FirstOrDefaultAsync(s => s.Id == user.Id);
-            if (providerProfile?.Status == "pending")
+            if (providerProfile?.ProviderStatus == "pending")
                 throw new UnauthorizedAccessException("طلب الاشتراك لسه قيد المراجعة");
-            if (providerProfile?.Status == "rejected")
+            if (providerProfile?.ProviderStatus == "rejected")
                 throw new UnauthorizedAccessException("تم رفض طلب اشتراكك");
         }
 
@@ -233,7 +233,8 @@ public class AuthService : IAuthService
             Id = user.Id,
             BusinessName = dto.BusinessName,
             Category = dto.Category,
-            Status = "pending",
+            Status = "Inactive",       // مش شغّال (Active/Inactive/Suspended/Banned) لحد ما يوافَق عليه
+            ProviderStatus = "pending", // حالة مراجعة الطلب (pending/approved/rejected)
             Phone = dto.Phone,
             Rating = 0,
             ReviewCount = 0,
@@ -289,6 +290,7 @@ public class AuthService : IAuthService
                 businessName = provider == null ? null : provider.BusinessName,
                 category = provider == null ? null : provider.Category,
                 status = provider == null ? null : provider.Status,
+                providerStatus = provider == null ? null : provider.ProviderStatus,
                 location = provider == null ? null : provider.Location,
                 description = provider == null ? null : provider.Description,
                 phone = provider == null ? null : provider.Phone,
@@ -350,7 +352,7 @@ public class AuthService : IAuthService
     public async Task<List<object>> GetPendingProvidersAsync()
     {
         var providers = await _db.ServiceProviders
-            .Where(s => s.Status == "pending")
+            .Where(s => s.ProviderStatus == "pending")
             .Include(s => s.User)
             .Select(s => (object)new
             {
@@ -362,6 +364,7 @@ public class AuthService : IAuthService
                 businessName = s.BusinessName,
                 category = s.Category,
                 status = s.Status,
+                providerStatus = s.ProviderStatus,
                 providerPhone = s.Phone,
                 createdAt = s.User.CreatedAt
             })
@@ -375,7 +378,9 @@ public class AuthService : IAuthService
     {
         var provider = await _db.ServiceProviders.FirstOrDefaultAsync(s => s.Id == Id);
         if (provider == null) return false;
-        provider.Status = "approved";
+        provider.ProviderStatus = "approved";
+        provider.Status = "Active";
+        provider.IsActive = true;
         await _db.SaveChangesAsync();
         return true;
     }
@@ -385,7 +390,9 @@ public class AuthService : IAuthService
     {
         var provider = await _db.ServiceProviders.FirstOrDefaultAsync(s => s.Id == Id);
         if (provider == null) return false;
-        provider.Status = "rejected";
+        provider.ProviderStatus = "rejected";
+        provider.Status = "Inactive";
+        provider.IsActive = false;
         await _db.SaveChangesAsync();
         return true;
     }

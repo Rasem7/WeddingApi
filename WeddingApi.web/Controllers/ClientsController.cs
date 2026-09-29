@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WeddingApi.core.Entities;
 using WeddingApi.core.Interfaces;
@@ -6,9 +7,13 @@ using WeddingApi.infrastructure.Data;
 
 namespace WeddingApi.web.Controllers;
 
+// ملحوظة: ده كنترولر إدارة يدوية للعملاء (Admin/Supervisor)، مش تسجيل عميل جديد.
+// تسجيل العميل الفعلي بيتم عن طريق /api/Auth/register/client لأنه بيربط
+// الـ Client بـ ApplicationUser تلقائيًا. الكنترولر ده لسه ناقص ربط UserId
+// (راجع تعليق داخل Create) ولازم يتصلح قبل الاستخدام الفعلي في الإنتاج.
 [ApiController]
 [Route("api/[controller]")]
-//[Authorize]
+[Authorize(Roles = "Admin,Supervisor")]
 public class ClientsController : ControllerBase
 {
     private readonly WeddingDbContext _Context;
@@ -91,16 +96,16 @@ public class ClientsController : ControllerBase
     [HttpPost(nameof(Create))]
     public async Task<IActionResult> Create(CreateClientDto dto)
     {
-        var client = new Client
+        // TODO (خارج نطاق إصلاحات الأمان العاجلة): CreateClientDto مفيهوش UserId،
+        // وClient.UserId مطلوب وفريد (FK لـ AspNetUsers). حاليًا الإندبوينت ده
+        // هيفشل عند الحفظ لأن UserId هيبقى 0 (مفيش يوزر بالرقم ده). محتاج نضيف
+        // UserId للـ DTO ونتأكد إن اليوزر موجود ومالوش Client مرتبط بيه قبليها،
+        // أو نلغي الإندبوينت ده تمامًا ونخلي التسجيل يتم فقط عن طريق
+        // /api/Auth/register/client. هرجعلها في مرحلة تصحيح النموذج (Phase 1).
+        return await Task.FromResult<IActionResult>(BadRequest(new
         {
-            GroomName = dto.GroomName,
-            BrideName = dto.BrideName,
-            GroomPhone = dto.GroomPhone,
-            BridePhone = dto.BridePhone,            
-            Budget = dto.Budget
-        };
-        var created = await _unitOfWork.Clients.CreateAsync(client);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+            message = "إنشاء عميل مباشر عبر هذا الإندبوينت غير مفعّل حاليًا. استخدم /api/Auth/register/client لتسجيل عميل جديد مرتبط بحساب مستخدم."
+        }));
     }
     [HttpPost(nameof(Update))]
     public async Task<IActionResult> Update([FromQuery] int id, [FromBody] CreateClientDto dto)
@@ -119,6 +124,7 @@ public class ClientsController : ControllerBase
     }
 
     [HttpPost(nameof(Delete))]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
         var client = await _unitOfWork.Clients.GetByIdAsync(id);
