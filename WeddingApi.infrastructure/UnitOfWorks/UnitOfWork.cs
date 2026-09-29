@@ -17,6 +17,7 @@ namespace WeddingApi.infrastructure.UnitOfWorks
 		private IBookingRepository _bookingRepository;
         private IClientRepository _clientRepository;
         private IServiceProviderRepository _serviceProviderRepository;
+        private IPaymentRepository _paymentRepository;
 
 
 		public UnitOfWork(WeddingDbContext context)
@@ -51,6 +52,16 @@ namespace WeddingApi.infrastructure.UnitOfWorks
 				if (_serviceProviderRepository == null)
 					_serviceProviderRepository = new ServiceProviderRepository(_context); // Lazy init
 				return _serviceProviderRepository;
+			}
+		}
+
+		public IPaymentRepository Payments
+		{
+			get
+			{
+				if (_paymentRepository == null)
+					_paymentRepository = new PaymentRepository(_context);
+				return _paymentRepository;
 			}
 		}
 
