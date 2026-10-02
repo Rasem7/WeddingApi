@@ -8,6 +8,10 @@ namespace WeddingApi.core.Interfaces
         Task<AuthResponseDto> LoginAsync(LoginDto dto);
         Task<AuthResponseDto> RegisterClientAsync(RegisterClientDto dto);
         Task<string> RegisterProviderAsync(RegisterProviderDto dto);
+        Task<object> CreateSupervisorAsync(CreateSupervisorDto dto);
+        Task<List<object>> GetSupervisorsAsync();
+        Task<bool> DeactivateSupervisorAsync(int id);
+        Task<bool> ReactivateSupervisorAsync(int id);
         Task<bool> ApproveProviderAsync(int Id);
         Task<bool> RejectProviderAsync(int Id);
         Task<object> GetProfileAsync(int userId);

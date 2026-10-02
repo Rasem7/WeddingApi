@@ -348,6 +348,78 @@ public class AuthService : IAuthService
             throw new Exception(string.Join("، ", result.Errors.Select(e => e.Description)));
     }
 
+    // ===== CREATE SUPERVISOR (Admin only — no public self-registration) =====
+    public async Task<object> CreateSupervisorAsync(CreateSupervisorDto dto)
+    {
+        if (await _userManager.FindByEmailAsync(dto.Email) != null)
+            throw new Exception("البريد الإلكتروني مستخدم بالفعل");
+
+        var user = new ApplicationUser
+        {
+            UserName = dto.UserName,
+            Email = dto.Email,
+            FullName = dto.FullName,
+            PhoneNumber = dto.Phone,
+            UserType = "supervisor",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var result = await _userManager.CreateAsync(user, dto.Password);
+        if (!result.Succeeded)
+            throw new Exception(string.Join("، ", result.Errors.Select(e => e.Description)));
+
+        await _userManager.AddToRoleAsync(user, "Supervisor");
+
+        return new
+        {
+            message = "تم إنشاء حساب المشرف بنجاح",
+            supervisorId = user.Id,
+            email = user.Email,
+            userName = user.UserName
+        };
+    }
+
+    // ===== LIST SUPERVISORS (Admin only) =====
+    public async Task<List<object>> GetSupervisorsAsync()
+    {
+        return await _userManager.Users
+            .Where(u => u.UserType == "supervisor")
+            .Select(u => (object)new
+            {
+                id = u.Id,
+                fullName = u.FullName,
+                email = u.Email,
+                userName = u.UserName,
+                phone = u.PhoneNumber,
+                isActive = u.IsActive,
+                createdAt = u.CreatedAt
+            })
+            .ToListAsync();
+    }
+
+    // ===== DEACTIVATE SUPERVISOR (Admin only — soft delete, keeps audit trail) =====
+    public async Task<bool> DeactivateSupervisorAsync(int id)
+    {
+        var user = await _userManager.FindByIdAsync(id.ToString());
+        if (user == null || user.UserType != "supervisor") return false;
+
+        user.IsActive = false;
+        await _userManager.UpdateAsync(user);
+        return true;
+    }
+
+    // ===== REACTIVATE SUPERVISOR (Admin only) =====
+    public async Task<bool> ReactivateSupervisorAsync(int id)
+    {
+        var user = await _userManager.FindByIdAsync(id.ToString());
+        if (user == null || user.UserType != "supervisor") return false;
+
+        user.IsActive = true;
+        await _userManager.UpdateAsync(user);
+        return true;
+    }
+
     // ===== GET PENDING PROVIDERS =====
     public async Task<List<object>> GetPendingProvidersAsync()
     {

@@ -79,6 +79,46 @@ public class AuthController : ControllerBase
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
+    // ===== CREATE SUPERVISOR (Admin only) =====
+    [HttpPost("supervisors")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> CreateSupervisor(CreateSupervisorDto dto)
+    {
+        try { return Ok(await _auth.CreateSupervisorAsync(dto)); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    // ===== LIST SUPERVISORS (Admin only) =====
+    [HttpGet("supervisors")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetSupervisors()
+    {
+        try { return Ok(await _auth.GetSupervisorsAsync()); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    // ===== DEACTIVATE SUPERVISOR (Admin only) =====
+    [HttpPatch("supervisors/{id}/deactivate")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeactivateSupervisor(int id)
+    {
+        var result = await _auth.DeactivateSupervisorAsync(id);
+        return result
+            ? Ok(new { message = "تم إيقاف حساب المشرف" })
+            : NotFound(new { message = "المشرف غير موجود" });
+    }
+
+    // ===== REACTIVATE SUPERVISOR (Admin only) =====
+    [HttpPatch("supervisors/{id}/reactivate")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ReactivateSupervisor(int id)
+    {
+        var result = await _auth.ReactivateSupervisorAsync(id);
+        return result
+            ? Ok(new { message = "تم إعادة تفعيل حساب المشرف" })
+            : NotFound(new { message = "المشرف غير موجود" });
+    }
+
     // ===== PENDING PROVIDERS (Admin only) =====
     [HttpGet("providers/pending")]
     [Authorize(Roles = "Admin")]

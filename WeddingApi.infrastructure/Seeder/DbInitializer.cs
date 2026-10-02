@@ -10,7 +10,7 @@ public static class DbInitializer
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole<int>>>();
 
         // ===== Roles =====
-        foreach (var role in new[] { "Admin", "Client", "Provider" })
+        foreach (var role in new[] { "Admin", "Supervisor", "Client", "Provider" })
         {
             if (!await roleManager.RoleExistsAsync(role))
                 await roleManager.CreateAsync(new IdentityRole<int> { Name = role });

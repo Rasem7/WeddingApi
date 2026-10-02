@@ -6,7 +6,7 @@ namespace WeddingApi.core.Interfaces
     public interface IBookingRepository
     {
         Task<PagedResult<Booking>> GetAllAsync(QueryParams query);
-        Task<Booking?> GetByIdAsync(int id);
+        Task<Booking> GetByIdAsync(int id);
         Task<List<Booking>> GetByClientIdAsync(int clientId);
         Task<List<Booking>> GetCalendarAsync(int year, int month);
         Task<Booking> CreateAsync(Booking booking);
