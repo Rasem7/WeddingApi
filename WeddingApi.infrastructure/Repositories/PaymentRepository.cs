@@ -30,6 +30,14 @@ public class PaymentRepository : IPaymentRepository
             .Where(p => p.BookingId == bookingId)
             .SumAsync(p => (decimal?)p.Amount) ?? 0m;
 
+    public async Task<decimal> GetTotalAsync() =>
+        await _db.Payments.SumAsync(p => (decimal?)p.Amount) ?? 0m;
+
+    public async Task<decimal> GetTotalSinceAsync(DateTime since) =>
+        await _db.Payments
+            .Where(p => p.PaidAt >= since)
+            .SumAsync(p => (decimal?)p.Amount) ?? 0m;
+
     public async Task<Payment> CreateAsync(Payment payment)
     {
         _db.Payments.Add(payment);

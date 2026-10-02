@@ -1,9 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using WeddingApi.core.Entities;
 using WeddingApi.core.Interfaces;
-using WeddingApi.infrastructure.Data;
 
 namespace WeddingApi.web.Controllers;
 
@@ -16,54 +13,31 @@ namespace WeddingApi.web.Controllers;
 [Authorize(Roles = "Admin,Supervisor")]
 public class ClientsController : ControllerBase
 {
-    private readonly WeddingDbContext _Context;
     private readonly IUnitOfWorks _unitOfWork;
 
-    public ClientsController(WeddingDbContext Context , IUnitOfWorks unitOfWorks) {
-        _Context = Context;
+    public ClientsController(IUnitOfWorks unitOfWorks)
+    {
         _unitOfWork = unitOfWorks;
-    
     }
-
 
     [HttpGet(nameof(GetAll))]
-    public async Task<ActionResult<IEnumerable<Client>>> GetAll(
+    public async Task<IActionResult> GetAll(
        int pageNumber = 1,
        int pageSize = 10,
-       string searchText = null
-       )
+       string searchText = null)
     {
-        var query = _Context.Clients.AsQueryable();
+        var result = await _unitOfWork.Clients.SearchAsync(pageNumber, pageSize, searchText);
 
-        if (!string.IsNullOrWhiteSpace(searchText))
-        {
-            query = query.Where(x =>
-                (x.BrideName ?? "").Contains(searchText.Trim()) || (x.GroomName ?? "").Contains(searchText.Trim()) ||
-                (x.BridePhone ?? "").Contains(searchText.Trim()) || (x.GroomPhone ?? "").Contains(searchText.Trim()));
-
-        }
-      
-
-        var clients = await query
-            .OrderByDescending(x => x.Id)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-
-        if (!clients.Any())
+        if (!result.Data.Any())
             return NotFound();
 
-        return Ok(clients);
+        return Ok(result);
     }
-    [HttpGet(nameof(GetAllWithoutPaging))]
-    public async Task<ActionResult<IEnumerable<Client>>> GetAllWithoutPaging(
- )
-    {
-        var query = _Context.Clients.AsQueryable();
 
-        var clients = await query
-            .OrderByDescending(x => x.Id)
-            .ToListAsync(); 
+    [HttpGet(nameof(GetAllWithoutPaging))]
+    public async Task<IActionResult> GetAllWithoutPaging()
+    {
+        var clients = await _unitOfWork.Clients.GetAllWithoutPagingAsync();
 
         if (!clients.Any())
             return NotFound();

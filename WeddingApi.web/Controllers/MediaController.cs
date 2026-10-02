@@ -2,9 +2,8 @@
 using CloudinaryDotNet.Actions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using WeddingApi.core.Entities;
-using WeddingApi.infrastructure.Data;
+using WeddingApi.core.Interfaces;
 
 namespace WeddingApi.web.Controllers;
 
@@ -12,12 +11,12 @@ namespace WeddingApi.web.Controllers;
 [Route("api/[controller]")]
 public class MediaController : ControllerBase
 {
-    private readonly WeddingDbContext _db;
+    private readonly IUnitOfWorks _unitOfWork;
     private readonly Cloudinary _cloudinary;
 
-    public MediaController(WeddingDbContext db, IConfiguration config)
+    public MediaController(IUnitOfWorks unitOfWork, IConfiguration config)
     {
-        _db = db;
+        _unitOfWork = unitOfWork;
         var account = new Account(
             config["Cloudinary:CloudName"],
             config["Cloudinary:ApiKey"],
@@ -27,19 +26,21 @@ public class MediaController : ControllerBase
     }
 
     // GET: api/media/{serviceProviderId}
+    // مسموح للزوار (بدون تسجيل دخول) لأنها صور عرض عامة على صفحة مزود الخدمة.
     [HttpGet("{serviceProviderId}")]
     public async Task<IActionResult> GetMedia(int serviceProviderId)
     {
-        var media = await _db.ServiceProviderMedias
-            .Where(m => m.ServiceProviderId == serviceProviderId)
-            .OrderByDescending(m => m.CreatedAt)
-            .ToListAsync();
+        var media = await _unitOfWork.Media.GetByProviderIdAsync(serviceProviderId);
         return Ok(media);
     }
 
     // POST: api/media/upload/{serviceProviderId}
+    // TODO: لازم نتحقق إن serviceProviderId ده فعلًا ملك اليوزر صاحب التوكن
+    // (أو إن اليوزر Admin/Supervisor) قبل ما نسمح بالرفع — حاليًا أي Provider
+    // مسجل دخول يقدر يرفع صور لأي مزود خدمة تاني. هنعالجها لما نربط التوكن
+    // بالـ ServiceProviderId في الـ claims.
     [HttpPost("upload/{serviceProviderId}")]
-    [Authorize]
+    [Authorize(Roles = "Provider,Admin,Supervisor")]
     public async Task<IActionResult> Upload(int serviceProviderId, IFormFile file)
     {
         if (file == null || file.Length == 0)
@@ -86,18 +87,18 @@ public class MediaController : ControllerBase
             MediaType = isVideo ? "video" : "image"
         };
 
-        _db.ServiceProviderMedias.Add(media);
-        await _db.SaveChangesAsync();
+        var created = await _unitOfWork.Media.CreateAsync(media);
 
-        return Ok(media);
+        return Ok(created);
     }
 
     // DELETE: api/media/{id}
+    // TODO: نفس ملاحظة التحقق من الملكية المذكورة فوق الـ Upload.
     [HttpDelete("{id}")]
-    [Authorize]
+    [Authorize(Roles = "Provider,Admin,Supervisor")]
     public async Task<IActionResult> Delete(int id)
     {
-        var media = await _db.ServiceProviderMedias.FindAsync(id);
+        var media = await _unitOfWork.Media.GetByIdAsync(id);
         if (media == null) return NotFound();
 
         // حذف من Cloudinary
@@ -107,8 +108,7 @@ public class MediaController : ControllerBase
 
         await _cloudinary.DestroyAsync(deleteParams);
 
-        _db.ServiceProviderMedias.Remove(media);
-        await _db.SaveChangesAsync();
+        await _unitOfWork.Media.DeleteAsync(id);
 
         return NoContent();
     }
