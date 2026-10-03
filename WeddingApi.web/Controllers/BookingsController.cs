@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WeddingApi.core.Common;
 using WeddingApi.core.DTOs.Bookings;
 using WeddingApi.core.Entities;
 using WeddingApi.core.Interfaces;
@@ -18,6 +19,23 @@ public class BookingsController : ControllerBase
         _unitOfWork = unitOfWorks;
     }
 
+    private static BookingDto ToDto(Booking b) => new()
+    {
+        Id = b.Id,
+        ClientId = b.ClientId,
+        GroomName = b.Client?.GroomName ?? "",
+        BrideName = b.Client?.BrideName ?? "",
+        WeddingDate = b.WeddingDate,
+        WeddingTime = b.WeddingTime,
+        Venue = b.Venue,
+        GuestCount = b.GuestCount,
+        EventType = b.EventType,
+        Status = b.Status,
+        TotalAmount = b.TotalAmount,
+        Notes = b.Notes,
+        CreatedAt = b.CreatedAt
+    };
+
     [HttpGet(nameof(GetAll))]
     public async Task<IActionResult> GetAll(
         int pageNumber = 1,
@@ -31,7 +49,15 @@ public class BookingsController : ControllerBase
         if (!result.Data.Any())
             return NotFound();
 
-        return Ok(result);
+        var dtoResult = new PagedResult<BookingDto>
+        {
+            Data = result.Data.Select(ToDto).ToList(),
+            TotalCount = result.TotalCount,
+            Page = result.Page,
+            PageSize = result.PageSize
+        };
+
+        return Ok(dtoResult);
     }
 
 
@@ -43,7 +69,7 @@ public class BookingsController : ControllerBase
         if (!bookings.Any())
             return NotFound();
 
-        return Ok(bookings);
+        return Ok(bookings.Select(ToDto));
     }
 
     [HttpGet(nameof(GetById))]

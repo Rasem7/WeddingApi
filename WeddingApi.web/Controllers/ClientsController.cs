@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WeddingApi.core.Common;
+using WeddingApi.core.Entities;
 using WeddingApi.core.Interfaces;
 
 namespace WeddingApi.web.Controllers;
@@ -20,6 +22,21 @@ public class ClientsController : ControllerBase
         _unitOfWork = unitOfWorks;
     }
 
+    private static ClientDto ToDto(Client c) => new()
+    {
+        Id = c.Id,
+        UserId = c.UserId,
+        GroomName = c.GroomName,
+        BrideName = c.BrideName,
+        GroomPhone = c.GroomPhone,
+        BridePhone = c.BridePhone,
+        Gender = c.Gender,
+        NationalId = c.NationalId,
+        Budget = c.Budget,
+        BudgetCategory = c.BudgetCategory,
+        CreatedAt = c.CreatedAt
+    };
+
     [HttpGet(nameof(GetAll))]
     public async Task<IActionResult> GetAll(
        int pageNumber = 1,
@@ -31,7 +48,15 @@ public class ClientsController : ControllerBase
         if (!result.Data.Any())
             return NotFound();
 
-        return Ok(result);
+        var dtoResult = new PagedResult<ClientDto>
+        {
+            Data = result.Data.Select(ToDto).ToList(),
+            TotalCount = result.TotalCount,
+            Page = result.Page,
+            PageSize = result.PageSize
+        };
+
+        return Ok(dtoResult);
     }
 
     [HttpGet(nameof(GetAllWithoutPaging))]
@@ -42,7 +67,7 @@ public class ClientsController : ControllerBase
         if (!clients.Any())
             return NotFound();
 
-        return Ok(clients);
+        return Ok(clients.Select(ToDto));
     }
 
     
