@@ -14,6 +14,7 @@ public class WeddingDbContext : IdentityDbContext<ApplicationUser, IdentityRole<
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<ServiceProvider> ServiceProviders => Set<ServiceProvider>();
     public DbSet<ServiceProviderMedia> ServiceProviderMedias { get; set; }
+    public DbSet<Service> Services => Set<Service>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -58,6 +59,13 @@ public class WeddingDbContext : IdentityDbContext<ApplicationUser, IdentityRole<
             .HasForeignKey(m => m.ServiceProviderId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // ===== Service → ServiceProvider (1-to-many: باقات الخدمة) =====
+        modelBuilder.Entity<Service>()
+            .HasOne(s => s.ServiceProvider)
+            .WithMany(sp => sp.Services)
+            .HasForeignKey(s => s.ServiceProviderId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         // ===== Decimal Precision =====
         modelBuilder.Entity<Client>()
             .Property(c => c.Budget).HasPrecision(18, 2);
@@ -73,6 +81,9 @@ public class WeddingDbContext : IdentityDbContext<ApplicationUser, IdentityRole<
 
         modelBuilder.Entity<ServiceProvider>()
             .Property(s => s.Rating).HasPrecision(3, 1);
+
+        modelBuilder.Entity<Service>()
+            .Property(s => s.Price).HasPrecision(18, 2);
     }
     /*protected override void OnModelCreating(ModelBuilder modelBuilder) 
     {

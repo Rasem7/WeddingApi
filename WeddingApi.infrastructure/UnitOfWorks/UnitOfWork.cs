@@ -19,6 +19,7 @@ namespace WeddingApi.infrastructure.UnitOfWorks
         private IServiceProviderRepository _serviceProviderRepository;
         private IPaymentRepository _paymentRepository;
         private IMediaRepository _mediaRepository;
+        private IServiceRepository _serviceRepository;
 
 
 		public UnitOfWork(WeddingDbContext context)
@@ -73,6 +74,16 @@ namespace WeddingApi.infrastructure.UnitOfWorks
 				if (_mediaRepository == null)
 					_mediaRepository = new MediaRepository(_context);
 				return _mediaRepository;
+			}
+		}
+
+		public IServiceRepository Services
+		{
+			get
+			{
+				if (_serviceRepository == null)
+					_serviceRepository = new ServiceRepository(_context);
+				return _serviceRepository;
 			}
 		}
 

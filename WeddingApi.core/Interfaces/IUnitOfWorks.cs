@@ -14,6 +14,7 @@ namespace WeddingApi.core.Interfaces
 		IServiceProviderRepository ServiceProviders { get; } // Repository for ServiceProvider entities
 		IPaymentRepository Payments { get; }
 		IMediaRepository Media { get; }
+		IServiceRepository Services { get; }
 		Task<int> CompleteAsync();
     }
 }
