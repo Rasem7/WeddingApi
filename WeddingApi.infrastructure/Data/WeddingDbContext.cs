@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using WeddingApi.core.Entities;
@@ -26,12 +26,6 @@ public class WeddingDbContext : IdentityDbContext<ApplicationUser, IdentityRole<
             .WithOne(u => u.Client)
             .HasForeignKey<Client>(c => c.UserId)
             .OnDelete(DeleteBehavior.Cascade);
-        
-        modelBuilder.Entity<Client>()
-           .Property(c => c.Id).ValueGeneratedNever();
-
-        modelBuilder.Entity<ServiceProvider>()
-            .Property(s => s.Id).ValueGeneratedNever();
 
         // ===== ApplicationUser → ServiceProvider (1-to-1) =====
         modelBuilder.Entity<ServiceProvider>()
@@ -50,6 +44,14 @@ public class WeddingDbContext : IdentityDbContext<ApplicationUser, IdentityRole<
             .WithMany(c => c.Bookings)
             .HasForeignKey(b => b.ClientId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // ===== Booking → Service (اختياري) =====
+        // Restrict: ممنوع حذف باقة عليها حجوزات (الأفضل تعطيلها IsActive=false).
+        modelBuilder.Entity<Booking>()
+            .HasOne(b => b.Service)
+            .WithMany()
+            .HasForeignKey(b => b.ServiceId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // ===== Booking → Payments (1-to-many) =====
         modelBuilder.Entity<Payment>()
@@ -90,6 +92,14 @@ public class WeddingDbContext : IdentityDbContext<ApplicationUser, IdentityRole<
 
         modelBuilder.Entity<Service>()
             .Property(s => s.Price).HasPrecision(18, 2);
+
+        // Client.Id و ServiceProvider.Id بيتاخدوا من ApplicationUser.Id (Shared Key)،
+        // فلازم متبقاش IDENTITY.
+        modelBuilder.Entity<Client>()
+            .Property(c => c.Id).ValueGeneratedNever();
+
+        modelBuilder.Entity<ServiceProvider>()
+            .Property(s => s.Id).ValueGeneratedNever();
     }
     /*protected override void OnModelCreating(ModelBuilder modelBuilder) 
     {

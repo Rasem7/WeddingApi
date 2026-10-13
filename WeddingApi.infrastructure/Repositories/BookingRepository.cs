@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using WeddingApi.core.Common;
 using WeddingApi.core.Entities;
 using WeddingApi.core.Interfaces;
@@ -13,7 +13,7 @@ public class BookingRepository : IBookingRepository
 
     public async Task<PagedResult<Booking>> GetAllAsync(QueryParams q)
     {
-        var query = _db.Bookings.Include(b => b.Client).AsQueryable();
+        var query = _db.Bookings.Include(b => b.Client).Include(b => b.Service).AsQueryable();
 
         if (!string.IsNullOrEmpty(q.Status))
             query = query.Where(b => b.Status == q.Status);
@@ -35,12 +35,12 @@ public class BookingRepository : IBookingRepository
     }
 
     public async Task<Booking?> GetByIdAsync(int id) =>
-        await _db.Bookings.Include(b => b.Client).Include(b => b.Payments)
+        await _db.Bookings.Include(b => b.Client).Include(b => b.Service).Include(b => b.Payments)
             .FirstOrDefaultAsync(b => b.Id == id);
 
     public async Task<PagedResult<Booking>> SearchAsync(int pageNumber, int pageSize, string? searchText, string? status, string? eventType)
     {
-        var query = _db.Bookings.Include(b => b.Client).AsQueryable();
+        var query = _db.Bookings.Include(b => b.Client).Include(b => b.Service).AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(searchText))
         {
@@ -72,7 +72,7 @@ public class BookingRepository : IBookingRepository
     }
 
     public async Task<List<Booking>> GetAllWithClientAsync() =>
-        await _db.Bookings.Include(b => b.Client)
+        await _db.Bookings.Include(b => b.Client).Include(b => b.Service)
             .OrderByDescending(x => x.Id)
             .ToListAsync();
 

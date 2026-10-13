@@ -12,7 +12,7 @@ using WeddingApi.infrastructure.Data;
 namespace WeddingApi.infrastructure.Migrations
 {
     [DbContext(typeof(WeddingDbContext))]
-    [Migration("20261013214621_InitDB")]
+    [Migration("20261013224001_InitDB")]
     partial class InitDB
     {
         /// <inheritdoc />
@@ -273,6 +273,9 @@ namespace WeddingApi.infrastructure.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<int?>("ServiceId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -296,6 +299,8 @@ namespace WeddingApi.infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ClientId");
+
+                    b.HasIndex("ServiceId");
 
                     b.ToTable("Bookings");
                 });
@@ -590,7 +595,14 @@ namespace WeddingApi.infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("WeddingApi.core.Entities.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Client");
+
+                    b.Navigation("Service");
                 });
 
             modelBuilder.Entity("WeddingApi.core.Entities.Client", b =>

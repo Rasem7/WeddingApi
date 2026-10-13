@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace WeddingApi.core.Entities
 {
@@ -11,6 +11,12 @@ namespace WeddingApi.core.Entities
         public int ClientId { get; set; }
 
         public Client Client { get; set; } = null!;
+
+        // الباقة/الخدمة المحجوزة (اختياري للتوافق مع الحجوزات القديمة).
+        // لو موجودة، TotalAmount بيتاخد من سعر الباقة وقت الحجز.
+        public int? ServiceId { get; set; }
+
+        public Service Service { get; set; }
 
         [Required(ErrorMessage = "Wedding date is required.")]
         [DataType(DataType.Date)]

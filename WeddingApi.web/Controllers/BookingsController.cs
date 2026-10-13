@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using WeddingApi.core.Common;
@@ -26,6 +26,9 @@ public class BookingsController : ControllerBase
         ClientId = b.ClientId,
         GroomName = b.Client?.GroomName ?? "",
         BrideName = b.Client?.BrideName ?? "",
+        ServiceId = b.ServiceId,
+        ServiceName = b.Service?.Name ?? "",
+        ServiceProviderId = b.Service?.ServiceProviderId,
         WeddingDate = b.WeddingDate,
         WeddingTime = b.WeddingTime,
         Venue = b.Venue,
@@ -84,6 +87,14 @@ public class BookingsController : ControllerBase
             booking.Id,
             booking.Status,
             booking.WeddingDate,
+            booking.TotalAmount,
+            Service = booking.Service == null ? null : new
+            {
+                booking.Service.Id,
+                booking.Service.Name,
+                booking.Service.Price,
+                booking.Service.ServiceProviderId
+            },
             Client = new
             {
                 booking.Client.Id,
@@ -131,19 +142,45 @@ public class BookingsController : ControllerBase
                 return Unauthorized(new { message = "تعذر التحقق من هوية العميل من التوكن." });
         }
 
+        // تحديد السعر: من الباقة لو اتحددت، وإلا من المبلغ المُدخل يدويًا.
+        decimal totalAmount;
+        if (dto.ServiceId.HasValue)
+        {
+            var service = await _unitOfWork.Services.GetByIdAsync(dto.ServiceId.Value);
+            if (service == null)
+                return NotFound(new { message = "الباقة المطلوبة غير موجودة." });
+
+            if (!service.IsActive || service.ServiceProvider == null
+                || !service.ServiceProvider.IsActive || service.ServiceProvider.ProviderStatus != "approved")
+                return BadRequest(new { message = "هذه الباقة غير متاحة للحجز حاليًا." });
+
+            totalAmount = service.Price; // السعر من الباقة دايمًا (نتجاهل أي مبلغ جاي من العميل)
+        }
+        else
+        {
+            if (dto.TotalAmount <= 0)
+                return BadRequest(new { message = "لازم تختار باقة (ServiceId) أو تحدد مبلغ أكبر من صفر." });
+
+            totalAmount = dto.TotalAmount;
+        }
+
         var booking = new Booking
         {
             ClientId = clientId,
+            ServiceId = dto.ServiceId,
             WeddingDate = dto.WeddingDate,
             WeddingTime = dto.WeddingTime,
             Venue = dto.Venue,
             GuestCount = dto.GuestCount,
             EventType = dto.EventType,
-            TotalAmount = dto.TotalAmount,
+            TotalAmount = totalAmount,
             Notes = dto.Notes
         };
         var created = await _unitOfWork.Bookings.CreateAsync(booking);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+
+        // نجيبه تاني بالـ Client والباقة عشان الرد يبقى DTO كامل بدل الـ Entity الخام.
+        var full = await _unitOfWork.Bookings.GetByIdAsync(created.Id);
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, ToDto(full ?? created));
     }
 
     [HttpPost(nameof(UpdateStatus))]

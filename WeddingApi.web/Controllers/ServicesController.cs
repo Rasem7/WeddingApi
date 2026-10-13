@@ -1,5 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using WeddingApi.core.DTOs.Services;
 using WeddingApi.core.Entities;
@@ -104,7 +105,19 @@ public class ServicesController : ControllerBase
         if (IsForbiddenForProvider(existing.ServiceProviderId))
             return Forbid();
 
-        await _unitOfWork.Services.DeleteAsync(id);
+        try
+        {
+            await _unitOfWork.Services.DeleteAsync(id);
+        }
+        catch (DbUpdateException)
+        {
+            // الباقة مرتبطة بحجوزات — مينفعش تتمسح، الأفضل نعطّلها.
+            return Conflict(new
+            {
+                message = "لا يمكن حذف هذه الباقة لأنها مرتبطة بحجوزات. قم بتعطيلها بدلًا من ذلك (Update مع isActive=false)."
+            });
+        }
+
         return Ok(new { message = "تم حذف الخدمة", deletedServiceId = id });
     }
 }

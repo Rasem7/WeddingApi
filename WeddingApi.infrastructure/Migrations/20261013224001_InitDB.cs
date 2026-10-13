@@ -223,34 +223,6 @@ namespace WeddingApi.infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Bookings",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    ClientId = table.Column<int>(type: "int", nullable: false),
-                    WeddingDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    WeddingTime = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Venue = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    GuestCount = table.Column<int>(type: "int", nullable: false),
-                    EventType = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    TotalAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    Notes = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Bookings", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Bookings_Clients_ClientId",
-                        column: x => x.ClientId,
-                        principalTable: "Clients",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "ServiceProviderMedias",
                 columns: table => new
                 {
@@ -295,6 +267,41 @@ namespace WeddingApi.infrastructure.Migrations
                         principalTable: "ServiceProviders",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Bookings",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ClientId = table.Column<int>(type: "int", nullable: false),
+                    ServiceId = table.Column<int>(type: "int", nullable: true),
+                    WeddingDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    WeddingTime = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Venue = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    GuestCount = table.Column<int>(type: "int", nullable: false),
+                    EventType = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    TotalAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Notes = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Bookings", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Bookings_Clients_ClientId",
+                        column: x => x.ClientId,
+                        principalTable: "Clients",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Bookings_Services_ServiceId",
+                        column: x => x.ServiceId,
+                        principalTable: "Services",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -365,6 +372,11 @@ namespace WeddingApi.infrastructure.Migrations
                 column: "ClientId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Bookings_ServiceId",
+                table: "Bookings",
+                column: "ServiceId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Clients_NationalId",
                 table: "Clients",
                 column: "NationalId");
@@ -422,19 +434,19 @@ namespace WeddingApi.infrastructure.Migrations
                 name: "ServiceProviderMedias");
 
             migrationBuilder.DropTable(
-                name: "Services");
-
-            migrationBuilder.DropTable(
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
                 name: "Bookings");
 
             migrationBuilder.DropTable(
-                name: "ServiceProviders");
+                name: "Clients");
 
             migrationBuilder.DropTable(
-                name: "Clients");
+                name: "Services");
+
+            migrationBuilder.DropTable(
+                name: "ServiceProviders");
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
