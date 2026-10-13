@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using WeddingApi.core.Common;
 using WeddingApi.core.DTOs.Bookings;
 using WeddingApi.core.Entities;
@@ -114,16 +115,25 @@ public class BookingsController : ControllerBase
 
         return Ok(result);
     }
-    // ملحوظة: الحجز مبدئيًا مسموح لأي عميل/أدمن/مشرف. التحسين المستقبلي المطلوب:
-    // اشتقاق ClientId من التوكن نفسه (User.FindFirstValue) بدل قبوله في الـ Body،
-    // عشان نمنع عميل يعمل حجز باسم عميل تاني.
     [HttpPost(nameof(Create))]
     [Authorize(Roles = "Client,Admin,Supervisor")]
     public async Task<IActionResult> Create(CreateBookingDto dto)
     {
+        var clientId = dto.ClientId;
+
+        // لو اللي بيحجز هو العميل نفسه، نتجاهل أي ClientId جاي في الـ body
+        // ونستخدم هويته من التوكن، عشان نمنعه يحجز باسم عميل تاني.
+        // الأدمن/المشرف لوحدهم المسموح لهم يحددوا ClientId مختلف (حجز يدوي بالنيابة عن عميل).
+        if (User.IsInRole("Client"))
+        {
+            var tokenUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(tokenUserId, out clientId))
+                return Unauthorized(new { message = "تعذر التحقق من هوية العميل من التوكن." });
+        }
+
         var booking = new Booking
         {
-            ClientId = dto.ClientId,
+            ClientId = clientId,
             WeddingDate = dto.WeddingDate,
             WeddingTime = dto.WeddingTime,
             Venue = dto.Venue,

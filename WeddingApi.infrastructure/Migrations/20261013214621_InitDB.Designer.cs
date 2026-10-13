@@ -12,8 +12,8 @@ using WeddingApi.infrastructure.Data;
 namespace WeddingApi.infrastructure.Migrations
 {
     [DbContext(typeof(WeddingDbContext))]
-    [Migration("20261003203348_AddServiceEntity")]
-    partial class AddServiceEntity
+    [Migration("20261013214621_InitDB")]
+    partial class InitDB
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -303,10 +303,7 @@ namespace WeddingApi.infrastructure.Migrations
             modelBuilder.Entity("WeddingApi.core.Entities.Client", b =>
                 {
                     b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("BrideName")
                         .IsRequired()
@@ -436,10 +433,7 @@ namespace WeddingApi.infrastructure.Migrations
             modelBuilder.Entity("WeddingApi.core.Entities.ServiceProvider", b =>
                 {
                     b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("BusinessName")
                         .IsRequired()

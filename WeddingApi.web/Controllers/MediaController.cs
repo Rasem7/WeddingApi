@@ -2,6 +2,7 @@
 using CloudinaryDotNet.Actions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using WeddingApi.core.Entities;
 using WeddingApi.core.Interfaces;
 
@@ -25,6 +26,16 @@ public class MediaController : ControllerBase
         _cloudinary = new Cloudinary(account);
     }
 
+    // true لو اليوزر الحالي Provider ومش صاحب الـ ServiceProviderId ده (يعني ممنوع).
+    // الأدمن/المشرف ليهم استثناء دايمًا.
+    private bool IsForbiddenForProvider(int serviceProviderId)
+    {
+        if (!User.IsInRole("Provider")) return false;
+
+        var tokenUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return !int.TryParse(tokenUserId, out var myId) || myId != serviceProviderId;
+    }
+
     // GET: api/media/{serviceProviderId}
     // مسموح للزوار (بدون تسجيل دخول) لأنها صور عرض عامة على صفحة مزود الخدمة.
     [HttpGet("{serviceProviderId}")]
@@ -35,14 +46,13 @@ public class MediaController : ControllerBase
     }
 
     // POST: api/media/upload/{serviceProviderId}
-    // TODO: لازم نتحقق إن serviceProviderId ده فعلًا ملك اليوزر صاحب التوكن
-    // (أو إن اليوزر Admin/Supervisor) قبل ما نسمح بالرفع — حاليًا أي Provider
-    // مسجل دخول يقدر يرفع صور لأي مزود خدمة تاني. هنعالجها لما نربط التوكن
-    // بالـ ServiceProviderId في الـ claims.
     [HttpPost("upload/{serviceProviderId}")]
     [Authorize(Roles = "Provider,Admin,Supervisor")]
     public async Task<IActionResult> Upload(int serviceProviderId, IFormFile file)
     {
+        if (IsForbiddenForProvider(serviceProviderId))
+            return Forbid();
+
         if (file == null || file.Length == 0)
             return BadRequest("لا يوجد ملف");
 
@@ -93,13 +103,15 @@ public class MediaController : ControllerBase
     }
 
     // DELETE: api/media/{id}
-    // TODO: نفس ملاحظة التحقق من الملكية المذكورة فوق الـ Upload.
     [HttpDelete("{id}")]
     [Authorize(Roles = "Provider,Admin,Supervisor")]
     public async Task<IActionResult> Delete(int id)
     {
         var media = await _unitOfWork.Media.GetByIdAsync(id);
         if (media == null) return NotFound();
+
+        if (IsForbiddenForProvider(media.ServiceProviderId))
+            return Forbid();
 
         // حذف من Cloudinary
         var deleteParams = media.MediaType == "video"

@@ -300,10 +300,7 @@ namespace WeddingApi.infrastructure.Migrations
             modelBuilder.Entity("WeddingApi.core.Entities.Client", b =>
                 {
                     b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("BrideName")
                         .IsRequired()
@@ -433,10 +430,7 @@ namespace WeddingApi.infrastructure.Migrations
             modelBuilder.Entity("WeddingApi.core.Entities.ServiceProvider", b =>
                 {
                     b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("BusinessName")
                         .IsRequired()

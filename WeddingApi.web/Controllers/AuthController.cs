@@ -28,7 +28,8 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> RegisterClient(RegisterClientDto dto)
     {
         try { return Ok(await _auth.RegisterClientAsync(dto)); }
-        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        catch (Exception ex) { return BadRequest(new { message = ex.InnerException?.Message ?? ex.Message }); }
+        //catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
     // ===== REGISTER PROVIDER =====
@@ -37,6 +38,46 @@ public class AuthController : ControllerBase
     {
         try { return Ok(new { message = await _auth.RegisterProviderAsync(dto) }); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    // ===== CREATE SUPERVISOR (Admin only) =====
+    [HttpPost("supervisors")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> CreateSupervisor(CreateSupervisorDto dto)
+    {
+        try { return Ok(await _auth.CreateSupervisorAsync(dto)); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    // ===== GET SUPERVISORS (Admin only) =====
+    [HttpGet("supervisors")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetSupervisors()
+    {
+        try { return Ok(await _auth.GetSupervisorsAsync()); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    // ===== DEACTIVATE SUPERVISOR (Admin only) =====
+    [HttpPatch("supervisors/{id}/deactivate")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeactivateSupervisor(int id)
+    {
+        var result = await _auth.DeactivateSupervisorAsync(id);
+        return result
+            ? Ok(new { message = "تم إيقاف حساب المشرف" })
+            : NotFound(new { message = "المشرف غير موجود" });
+    }
+
+    // ===== REACTIVATE SUPERVISOR (Admin only) =====
+    [HttpPatch("supervisors/{id}/reactivate")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ReactivateSupervisor(int id)
+    {
+        var result = await _auth.ReactivateSupervisorAsync(id);
+        return result
+            ? Ok(new { message = "تم إعادة تفعيل حساب المشرف" })
+            : NotFound(new { message = "المشرف غير موجود" });
     }
 
     // ===== GET CURRENT USER =====
@@ -77,46 +118,6 @@ public class AuthController : ControllerBase
             return Ok(new { message = "تم تغيير كلمة المرور بنجاح" });
         }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
-    }
-
-    // ===== CREATE SUPERVISOR (Admin only) =====
-    [HttpPost("supervisors")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> CreateSupervisor(CreateSupervisorDto dto)
-    {
-        try { return Ok(await _auth.CreateSupervisorAsync(dto)); }
-        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
-    }
-
-    // ===== LIST SUPERVISORS (Admin only) =====
-    [HttpGet("supervisors")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetSupervisors()
-    {
-        try { return Ok(await _auth.GetSupervisorsAsync()); }
-        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
-    }
-
-    // ===== DEACTIVATE SUPERVISOR (Admin only) =====
-    [HttpPatch("supervisors/{id}/deactivate")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> DeactivateSupervisor(int id)
-    {
-        var result = await _auth.DeactivateSupervisorAsync(id);
-        return result
-            ? Ok(new { message = "تم إيقاف حساب المشرف" })
-            : NotFound(new { message = "المشرف غير موجود" });
-    }
-
-    // ===== REACTIVATE SUPERVISOR (Admin only) =====
-    [HttpPatch("supervisors/{id}/reactivate")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> ReactivateSupervisor(int id)
-    {
-        var result = await _auth.ReactivateSupervisorAsync(id);
-        return result
-            ? Ok(new { message = "تم إعادة تفعيل حساب المشرف" })
-            : NotFound(new { message = "المشرف غير موجود" });
     }
 
     // ===== PENDING PROVIDERS (Admin only) =====

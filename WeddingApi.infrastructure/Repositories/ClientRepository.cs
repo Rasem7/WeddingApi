@@ -40,7 +40,7 @@ public class ClientRepository : IClientRepository
         };
     }
 
-    public async Task<Client?> GetByIdAsync(int id) =>
+    public async Task<Client> GetByIdAsync(int id) =>
         await _db.Clients.Include(c => c.Bookings).FirstOrDefaultAsync(c => c.Id == id);
 
     public async Task<PagedResult<Client>> SearchAsync(int pageNumber, int pageSize, string? searchText)

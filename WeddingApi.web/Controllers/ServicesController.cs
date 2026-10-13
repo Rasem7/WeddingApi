@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using WeddingApi.core.DTOs.Services;
 using WeddingApi.core.Entities;
 using WeddingApi.core.Interfaces;
@@ -12,6 +13,16 @@ public class ServicesController : ControllerBase
 {
     private readonly IUnitOfWorks _unitOfWork;
     public ServicesController(IUnitOfWorks unitOfWork) => _unitOfWork = unitOfWork;
+
+    // true لو اليوزر الحالي Provider ومش صاحب الـ ServiceProviderId ده (يعني ممنوع).
+    // الأدمن/المشرف ليهم استثناء دايمًا.
+    private bool IsForbiddenForProvider(int serviceProviderId)
+    {
+        if (!User.IsInRole("Provider")) return false;
+
+        var tokenUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return !int.TryParse(tokenUserId, out var myId) || myId != serviceProviderId;
+    }
 
     private static ServiceDto ToDto(Service s) => new()
     {
@@ -43,12 +54,13 @@ public class ServicesController : ControllerBase
     }
 
     // POST: api/Services/Create
-    // TODO: لازم نتحقق إن ServiceProviderId بتاع الـ dto فعلًا ملك اليوزر صاحب
-    // التوكن (أو إن اليوزر Admin/Supervisor) — نفس ملاحظة MediaController.
     [HttpPost(nameof(Create))]
     [Authorize(Roles = "Provider,Admin,Supervisor")]
     public async Task<IActionResult> Create(CreateServiceDto dto)
     {
+        if (IsForbiddenForProvider(dto.ServiceProviderId))
+            return Forbid();
+
         var service = new Service
         {
             ServiceProviderId = dto.ServiceProviderId,
@@ -69,6 +81,9 @@ public class ServicesController : ControllerBase
         var existing = await _unitOfWork.Services.GetByIdAsync(id);
         if (existing == null) return NotFound();
 
+        if (IsForbiddenForProvider(existing.ServiceProviderId))
+            return Forbid();
+
         if (!string.IsNullOrWhiteSpace(dto.Name)) existing.Name = dto.Name;
         if (!string.IsNullOrWhiteSpace(dto.Description)) existing.Description = dto.Description;
         if (dto.Price.HasValue) existing.Price = dto.Price.Value;
@@ -85,6 +100,9 @@ public class ServicesController : ControllerBase
     {
         var existing = await _unitOfWork.Services.GetByIdAsync(id);
         if (existing == null) return NotFound();
+
+        if (IsForbiddenForProvider(existing.ServiceProviderId))
+            return Forbid();
 
         await _unitOfWork.Services.DeleteAsync(id);
         return Ok(new { message = "تم حذف الخدمة", deletedServiceId = id });

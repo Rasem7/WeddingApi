@@ -89,7 +89,8 @@ public class AuthService : IAuthService
             FullName = user.FullName,
             Email = user.Email!,
             UserType = user.UserType,
-            UserId = user.Id
+            UserId = user.Id,
+            ClientId = clientId ?? 0
         };
     }
     /* public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
@@ -172,15 +173,30 @@ public class AuthService : IAuthService
 
         await _userManager.AddToRoleAsync(user, "Client");
 
+        /* var client = new Client
+         {
+             Id = user.Id,
+             UserId = user.Id,
+             Gender = dto.Gender,
+             NationalId = dto.NationalId,
+             GroomName = dto.Gender == "groom" ? dto.FullName : null,
+             BrideName = dto.Gender == "bride" ? dto.FullName : null,
+             GroomPhone = dto.Gender == "groom" ? dto.Phone : null,
+             BridePhone = dto.Gender == "bride" ? dto.Phone : null,
+             CreatedAt = DateTime.UtcNow
+         };*/
         var client = new Client
         {
             Id = user.Id,
+            UserId = user.Id,
             Gender = dto.Gender,
             NationalId = dto.NationalId,
-            GroomName = dto.Gender == "groom" ? dto.FullName : null,
-            BrideName = dto.Gender == "bride" ? dto.FullName : null,
-            GroomPhone = dto.Gender == "groom" ? dto.Phone : null,
-            BridePhone = dto.Gender == "bride" ? dto.Phone : null,
+            GroomName = dto.GroomName,
+            BrideName = dto.BrideName,
+            GroomPhone = dto.GroomPhone,
+            BridePhone = dto.BridePhone,
+            Budget = dto.Budget,
+            BudgetCategory = dto.BudgetCategory,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -231,20 +247,97 @@ public class AuthService : IAuthService
         var provider = new ServiceProvider
         {
             Id = user.Id,
+            UserId = user.Id,
+            Name = dto.Name,
             BusinessName = dto.BusinessName,
             Category = dto.Category,
+            Location = dto.Location,
+            Description = dto.Description,
             Status = "Inactive",       // مش شغّال (Active/Inactive/Suspended/Banned) لحد ما يوافَق عليه
             ProviderStatus = "pending", // حالة مراجعة الطلب (pending/approved/rejected)
             Phone = dto.Phone,
             Rating = 0,
             ReviewCount = 0,
-            PriceFrom = 0
+            PriceFrom = dto.PriceFrom
         };
 
         _db.ServiceProviders.Add(provider);
         await _db.SaveChangesAsync();
 
         return "تم تسجيل طلبك بنجاح، في انتظار موافقة الإدارة";
+    }
+
+    // ===== CREATE SUPERVISOR (Admin only — enforced at the controller level) =====
+    public async Task<object> CreateSupervisorAsync(CreateSupervisorDto dto)
+    {
+        if (await _userManager.FindByEmailAsync(dto.Email) != null)
+            throw new Exception("البريد الإلكتروني مستخدم بالفعل");
+
+        var user = new ApplicationUser
+        {
+            UserName = dto.UserName,
+            Email = dto.Email,
+            FullName = dto.FullName,
+            PhoneNumber = dto.Phone,
+            UserType = "supervisor",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var result = await _userManager.CreateAsync(user, dto.Password);
+        if (!result.Succeeded)
+            throw new Exception(string.Join("، ", result.Errors.Select(e => e.Description)));
+
+        await _userManager.AddToRoleAsync(user, "Supervisor");
+
+        return new
+        {
+            message = "تم إنشاء حساب المشرف بنجاح",
+            userId = user.Id,
+            fullName = user.FullName,
+            email = user.Email
+        };
+    }
+
+    // ===== GET SUPERVISORS (Admin only) =====
+    public async Task<List<object>> GetSupervisorsAsync()
+    {
+        var supervisors = await _db.Users
+            .Where(u => u.UserType == "supervisor")
+            .Select(u => (object)new
+            {
+                id = u.Id,
+                fullName = u.FullName,
+                email = u.Email,
+                phone = u.PhoneNumber,
+                isActive = u.IsActive,
+                createdAt = u.CreatedAt
+            })
+            .ToListAsync();
+
+        return supervisors;
+    }
+
+    // ===== DEACTIVATE SUPERVISOR (Admin only — soft delete, keeps audit trail) =====
+    public async Task<bool> DeactivateSupervisorAsync(int id)
+    {
+        var user = await _userManager.FindByIdAsync(id.ToString());
+        if (user == null || user.UserType != "supervisor") return false;
+
+        user.IsActive = false;
+        await _userManager.UpdateAsync(user);
+        return true;
+    }
+
+    // ===== REACTIVATE SUPERVISOR (Admin only) =====
+    public async Task<bool> ReactivateSupervisorAsync(int id)
+    {
+        var user = await _userManager.FindByIdAsync(id.ToString());
+        if (user == null || user.UserType != "supervisor") return false;
+
+        user.IsActive = true;
+        await _userManager.UpdateAsync(user);
+        return true;
     }
 
     // ===== GET PROFILE =====
@@ -348,78 +441,6 @@ public class AuthService : IAuthService
             throw new Exception(string.Join("، ", result.Errors.Select(e => e.Description)));
     }
 
-    // ===== CREATE SUPERVISOR (Admin only — no public self-registration) =====
-    public async Task<object> CreateSupervisorAsync(CreateSupervisorDto dto)
-    {
-        if (await _userManager.FindByEmailAsync(dto.Email) != null)
-            throw new Exception("البريد الإلكتروني مستخدم بالفعل");
-
-        var user = new ApplicationUser
-        {
-            UserName = dto.UserName,
-            Email = dto.Email,
-            FullName = dto.FullName,
-            PhoneNumber = dto.Phone,
-            UserType = "supervisor",
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        var result = await _userManager.CreateAsync(user, dto.Password);
-        if (!result.Succeeded)
-            throw new Exception(string.Join("، ", result.Errors.Select(e => e.Description)));
-
-        await _userManager.AddToRoleAsync(user, "Supervisor");
-
-        return new
-        {
-            message = "تم إنشاء حساب المشرف بنجاح",
-            supervisorId = user.Id,
-            email = user.Email,
-            userName = user.UserName
-        };
-    }
-
-    // ===== LIST SUPERVISORS (Admin only) =====
-    public async Task<List<object>> GetSupervisorsAsync()
-    {
-        return await _userManager.Users
-            .Where(u => u.UserType == "supervisor")
-            .Select(u => (object)new
-            {
-                id = u.Id,
-                fullName = u.FullName,
-                email = u.Email,
-                userName = u.UserName,
-                phone = u.PhoneNumber,
-                isActive = u.IsActive,
-                createdAt = u.CreatedAt
-            })
-            .ToListAsync();
-    }
-
-    // ===== DEACTIVATE SUPERVISOR (Admin only — soft delete, keeps audit trail) =====
-    public async Task<bool> DeactivateSupervisorAsync(int id)
-    {
-        var user = await _userManager.FindByIdAsync(id.ToString());
-        if (user == null || user.UserType != "supervisor") return false;
-
-        user.IsActive = false;
-        await _userManager.UpdateAsync(user);
-        return true;
-    }
-
-    // ===== REACTIVATE SUPERVISOR (Admin only) =====
-    public async Task<bool> ReactivateSupervisorAsync(int id)
-    {
-        var user = await _userManager.FindByIdAsync(id.ToString());
-        if (user == null || user.UserType != "supervisor") return false;
-
-        user.IsActive = true;
-        await _userManager.UpdateAsync(user);
-        return true;
-    }
-
     // ===== GET PENDING PROVIDERS =====
     public async Task<List<object>> GetPendingProvidersAsync()
     {
@@ -429,7 +450,6 @@ public class AuthService : IAuthService
             .Select(s => (object)new
             {
                 id = s.Id,
-                Id = s.Id,
                 fullName = s.User.FullName,
                 email = s.User.Email,
                 userPhone = s.User.PhoneNumber,

@@ -26,6 +26,12 @@ public class WeddingDbContext : IdentityDbContext<ApplicationUser, IdentityRole<
             .WithOne(u => u.Client)
             .HasForeignKey<Client>(c => c.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+        
+        modelBuilder.Entity<Client>()
+           .Property(c => c.Id).ValueGeneratedNever();
+
+        modelBuilder.Entity<ServiceProvider>()
+            .Property(s => s.Id).ValueGeneratedNever();
 
         // ===== ApplicationUser → ServiceProvider (1-to-1) =====
         modelBuilder.Entity<ServiceProvider>()
