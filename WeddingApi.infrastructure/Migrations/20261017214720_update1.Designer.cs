@@ -12,8 +12,8 @@ using WeddingApi.infrastructure.Data;
 namespace WeddingApi.infrastructure.Migrations
 {
     [DbContext(typeof(WeddingDbContext))]
-    [Migration("20261013224001_InitDB")]
-    partial class InitDB
+    [Migration("20261017214720_update1")]
+    partial class update1
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
