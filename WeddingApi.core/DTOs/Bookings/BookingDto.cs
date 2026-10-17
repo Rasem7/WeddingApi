@@ -1,9 +1,12 @@
-﻿public class BookingDto
+public class BookingDto
 {
     public int Id { get; set; }
     public int ClientId { get; set; }
     public string GroomName { get; set; } = string.Empty;
     public string BrideName { get; set; } = string.Empty;
+    public int? ServiceId { get; set; }
+    public string ServiceName { get; set; } = string.Empty;
+    public int? ServiceProviderId { get; set; }
     public DateTime WeddingDate { get; set; }
     public string WeddingTime { get; set; } = string.Empty;
     public string Venue { get; set; } = string.Empty;

@@ -14,7 +14,7 @@ namespace WeddingApi.core.Entities
         public string FullName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "User type is required.")]
-        [RegularExpression(@"^(admin|client|provider)$", ErrorMessage = "UserType must be one of: admin, client, provider.")]
+        [RegularExpression(@"^(admin|supervisor|client|provider)$", ErrorMessage = "UserType must be one of: admin, supervisor, client, provider.")]
         public string UserType { get; set; } = "client";
 
         [StringLength(250, ErrorMessage = "Address cannot exceed 250 characters.")]

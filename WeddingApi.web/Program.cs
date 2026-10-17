@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.Text;
 using WeddingApi.core.Entities;
 using WeddingApi.core.Interfaces;
@@ -10,9 +11,6 @@ using WeddingApi.infrastructure.Data;
 using WeddingApi.infrastructure.Repositories;
 using WeddingApi.infrastructure.Services;
 using WeddingApi.infrastructure.UnitOfWorks;
-
-// NOTE: If you still get CS0234 for Microsoft.OpenApi.Models, ensure the Swagger/OpenAPI package is referenced:
-// dotnet add package Swashbuckle.AspNetCore
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -74,11 +72,36 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-// ===== Swagger =====
+// ===== Swagger (مع دعم JWT — بيظهر زرار Authorize) =====
 builder.Services.AddEndpointsApiExplorer();
-// ===== Swagger =====
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "الصق التوكن فقط (من غير كلمة Bearer)"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
 // ===== Dependency Injection =====
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IClientRepository, ClientRepository>();

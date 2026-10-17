@@ -17,7 +17,7 @@ namespace WeddingApi.infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.14")
+                .HasAnnotation("ProductVersion", "9.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -270,6 +270,9 @@ namespace WeddingApi.infrastructure.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<int?>("ServiceId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -294,16 +297,15 @@ namespace WeddingApi.infrastructure.Migrations
 
                     b.HasIndex("ClientId");
 
+                    b.HasIndex("ServiceId");
+
                     b.ToTable("Bookings");
                 });
 
             modelBuilder.Entity("WeddingApi.core.Entities.Client", b =>
                 {
                     b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("BrideName")
                         .IsRequired()
@@ -393,13 +395,47 @@ namespace WeddingApi.infrastructure.Migrations
                     b.ToTable("Payments");
                 });
 
-            modelBuilder.Entity("WeddingApi.core.Entities.ServiceProvider", b =>
+            modelBuilder.Entity("WeddingApi.core.Entities.Service", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("ServiceProviderId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceProviderId");
+
+                    b.ToTable("Services");
+                });
+
+            modelBuilder.Entity("WeddingApi.core.Entities.ServiceProvider", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
 
                     b.Property<string>("BusinessName")
                         .IsRequired()
@@ -556,7 +592,14 @@ namespace WeddingApi.infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("WeddingApi.core.Entities.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Client");
+
+                    b.Navigation("Service");
                 });
 
             modelBuilder.Entity("WeddingApi.core.Entities.Client", b =>
@@ -579,6 +622,17 @@ namespace WeddingApi.infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Booking");
+                });
+
+            modelBuilder.Entity("WeddingApi.core.Entities.Service", b =>
+                {
+                    b.HasOne("WeddingApi.core.Entities.ServiceProvider", "ServiceProvider")
+                        .WithMany("Services")
+                        .HasForeignKey("ServiceProviderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ServiceProvider");
                 });
 
             modelBuilder.Entity("WeddingApi.core.Entities.ServiceProvider", b =>
@@ -623,6 +677,8 @@ namespace WeddingApi.infrastructure.Migrations
             modelBuilder.Entity("WeddingApi.core.Entities.ServiceProvider", b =>
                 {
                     b.Navigation("Media");
+
+                    b.Navigation("Services");
                 });
 #pragma warning restore 612, 618
         }

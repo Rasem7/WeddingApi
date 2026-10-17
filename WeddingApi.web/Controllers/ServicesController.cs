@@ -1,0 +1,123 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using WeddingApi.core.DTOs.Services;
+using WeddingApi.core.Entities;
+using WeddingApi.core.Interfaces;
+
+namespace WeddingApi.web.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class ServicesController : ControllerBase
+{
+    private readonly IUnitOfWorks _unitOfWork;
+    public ServicesController(IUnitOfWorks unitOfWork) => _unitOfWork = unitOfWork;
+
+    // true لو اليوزر الحالي Provider ومش صاحب الـ ServiceProviderId ده (يعني ممنوع).
+    // الأدمن/المشرف ليهم استثناء دايمًا.
+    private bool IsForbiddenForProvider(int serviceProviderId)
+    {
+        if (!User.IsInRole("Provider")) return false;
+
+        var tokenUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return !int.TryParse(tokenUserId, out var myId) || myId != serviceProviderId;
+    }
+
+    private static ServiceDto ToDto(Service s) => new()
+    {
+        Id = s.Id,
+        ServiceProviderId = s.ServiceProviderId,
+        Name = s.Name,
+        Description = s.Description,
+        Price = s.Price,
+        IsActive = s.IsActive,
+        CreatedAt = s.CreatedAt
+    };
+
+    // GET: api/Services/GetByProvider?serviceProviderId=5
+    // عامة (بدون تسجيل دخول) — عشان العريس/العروسة يقدروا يشوفوا الباقات المتاحة.
+    [HttpGet(nameof(GetByProvider))]
+    public async Task<IActionResult> GetByProvider(int serviceProviderId)
+    {
+        var services = await _unitOfWork.Services.GetByProviderIdAsync(serviceProviderId);
+        return Ok(services.Select(ToDto));
+    }
+
+    // GET: api/Services/GetById?id=5
+    [HttpGet(nameof(GetById))]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var service = await _unitOfWork.Services.GetByIdAsync(id);
+        if (service == null) return NotFound();
+        return Ok(ToDto(service));
+    }
+
+    // POST: api/Services/Create
+    [HttpPost(nameof(Create))]
+    [Authorize(Roles = "Provider,Admin,Supervisor")]
+    public async Task<IActionResult> Create(CreateServiceDto dto)
+    {
+        if (IsForbiddenForProvider(dto.ServiceProviderId))
+            return Forbid();
+
+        var service = new Service
+        {
+            ServiceProviderId = dto.ServiceProviderId,
+            Name = dto.Name,
+            Description = dto.Description,
+            Price = dto.Price
+        };
+
+        var created = await _unitOfWork.Services.CreateAsync(service);
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, ToDto(created));
+    }
+
+    // POST: api/Services/Update?id=5
+    [HttpPost(nameof(Update))]
+    [Authorize(Roles = "Provider,Admin,Supervisor")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateServiceDto dto)
+    {
+        var existing = await _unitOfWork.Services.GetByIdAsync(id);
+        if (existing == null) return NotFound();
+
+        if (IsForbiddenForProvider(existing.ServiceProviderId))
+            return Forbid();
+
+        if (!string.IsNullOrWhiteSpace(dto.Name)) existing.Name = dto.Name;
+        if (!string.IsNullOrWhiteSpace(dto.Description)) existing.Description = dto.Description;
+        if (dto.Price.HasValue) existing.Price = dto.Price.Value;
+        if (dto.IsActive.HasValue) existing.IsActive = dto.IsActive.Value;
+
+        var updated = await _unitOfWork.Services.UpdateAsync(existing);
+        return Ok(ToDto(updated));
+    }
+
+    // POST: api/Services/Delete?id=5
+    [HttpPost(nameof(Delete))]
+    [Authorize(Roles = "Provider,Admin,Supervisor")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var existing = await _unitOfWork.Services.GetByIdAsync(id);
+        if (existing == null) return NotFound();
+
+        if (IsForbiddenForProvider(existing.ServiceProviderId))
+            return Forbid();
+
+        try
+        {
+            await _unitOfWork.Services.DeleteAsync(id);
+        }
+        catch (DbUpdateException)
+        {
+            // الباقة مرتبطة بحجوزات — مينفعش تتمسح، الأفضل نعطّلها.
+            return Conflict(new
+            {
+                message = "لا يمكن حذف هذه الباقة لأنها مرتبطة بحجوزات. قم بتعطيلها بدلًا من ذلك (Update مع isActive=false)."
+            });
+        }
+
+        return Ok(new { message = "تم حذف الخدمة", deletedServiceId = id });
+    }
+}

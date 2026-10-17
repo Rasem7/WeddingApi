@@ -71,5 +71,9 @@ namespace WeddingApi.core.Entities
         public ApplicationUser User { get; set; } = null!;
 
         public virtual ICollection<ServiceProviderMedia> Media { get; set; } = new List<ServiceProviderMedia>();
+
+        // باقات/خدمات فعلية بأسعارها الخاصة (راجع تعليق Service.cs). PriceFrom فوق
+        // فضل للعرض السريع فقط، التفاصيل الحقيقية هنا.
+        public virtual ICollection<Service> Services { get; set; } = new List<Service>();
     }
 }

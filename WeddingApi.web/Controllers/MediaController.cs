@@ -2,9 +2,9 @@
 using CloudinaryDotNet.Actions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using WeddingApi.core.Entities;
-using WeddingApi.infrastructure.Data;
+using WeddingApi.core.Interfaces;
 
 namespace WeddingApi.web.Controllers;
 
@@ -12,12 +12,12 @@ namespace WeddingApi.web.Controllers;
 [Route("api/[controller]")]
 public class MediaController : ControllerBase
 {
-    private readonly WeddingDbContext _db;
+    private readonly IUnitOfWorks _unitOfWork;
     private readonly Cloudinary _cloudinary;
 
-    public MediaController(WeddingDbContext db, IConfiguration config)
+    public MediaController(IUnitOfWorks unitOfWork, IConfiguration config)
     {
-        _db = db;
+        _unitOfWork = unitOfWork;
         var account = new Account(
             config["Cloudinary:CloudName"],
             config["Cloudinary:ApiKey"],
@@ -26,22 +26,33 @@ public class MediaController : ControllerBase
         _cloudinary = new Cloudinary(account);
     }
 
+    // true لو اليوزر الحالي Provider ومش صاحب الـ ServiceProviderId ده (يعني ممنوع).
+    // الأدمن/المشرف ليهم استثناء دايمًا.
+    private bool IsForbiddenForProvider(int serviceProviderId)
+    {
+        if (!User.IsInRole("Provider")) return false;
+
+        var tokenUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return !int.TryParse(tokenUserId, out var myId) || myId != serviceProviderId;
+    }
+
     // GET: api/media/{serviceProviderId}
+    // مسموح للزوار (بدون تسجيل دخول) لأنها صور عرض عامة على صفحة مزود الخدمة.
     [HttpGet("{serviceProviderId}")]
     public async Task<IActionResult> GetMedia(int serviceProviderId)
     {
-        var media = await _db.ServiceProviderMedias
-            .Where(m => m.ServiceProviderId == serviceProviderId)
-            .OrderByDescending(m => m.CreatedAt)
-            .ToListAsync();
+        var media = await _unitOfWork.Media.GetByProviderIdAsync(serviceProviderId);
         return Ok(media);
     }
 
     // POST: api/media/upload/{serviceProviderId}
     [HttpPost("upload/{serviceProviderId}")]
-    [Authorize]
+    [Authorize(Roles = "Provider,Admin,Supervisor")]
     public async Task<IActionResult> Upload(int serviceProviderId, IFormFile file)
     {
+        if (IsForbiddenForProvider(serviceProviderId))
+            return Forbid();
+
         if (file == null || file.Length == 0)
             return BadRequest("لا يوجد ملف");
 
@@ -86,19 +97,21 @@ public class MediaController : ControllerBase
             MediaType = isVideo ? "video" : "image"
         };
 
-        _db.ServiceProviderMedias.Add(media);
-        await _db.SaveChangesAsync();
+        var created = await _unitOfWork.Media.CreateAsync(media);
 
-        return Ok(media);
+        return Ok(created);
     }
 
     // DELETE: api/media/{id}
     [HttpDelete("{id}")]
-    [Authorize]
+    [Authorize(Roles = "Provider,Admin,Supervisor")]
     public async Task<IActionResult> Delete(int id)
     {
-        var media = await _db.ServiceProviderMedias.FindAsync(id);
+        var media = await _unitOfWork.Media.GetByIdAsync(id);
         if (media == null) return NotFound();
+
+        if (IsForbiddenForProvider(media.ServiceProviderId))
+            return Forbid();
 
         // حذف من Cloudinary
         var deleteParams = media.MediaType == "video"
@@ -107,8 +120,7 @@ public class MediaController : ControllerBase
 
         await _cloudinary.DestroyAsync(deleteParams);
 
-        _db.ServiceProviderMedias.Remove(media);
-        await _db.SaveChangesAsync();
+        await _unitOfWork.Media.DeleteAsync(id);
 
         return NoContent();
     }

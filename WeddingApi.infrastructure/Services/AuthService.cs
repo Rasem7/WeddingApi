@@ -47,9 +47,9 @@ public class AuthService : IAuthService
         {
             var providerProfile = await _db.ServiceProviders
                 .FirstOrDefaultAsync(s => s.Id == user.Id);
-            if (providerProfile?.Status == "pending")
+            if (providerProfile?.ProviderStatus == "pending")
                 throw new UnauthorizedAccessException("طلب الاشتراك لسه قيد المراجعة");
-            if (providerProfile?.Status == "rejected")
+            if (providerProfile?.ProviderStatus == "rejected")
                 throw new UnauthorizedAccessException("تم رفض طلب اشتراكك");
         }
 
@@ -89,7 +89,8 @@ public class AuthService : IAuthService
             FullName = user.FullName,
             Email = user.Email!,
             UserType = user.UserType,
-            UserId = user.Id
+            UserId = user.Id,
+            ClientId = clientId ?? 0
         };
     }
     /* public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
@@ -172,15 +173,30 @@ public class AuthService : IAuthService
 
         await _userManager.AddToRoleAsync(user, "Client");
 
+        /* var client = new Client
+         {
+             Id = user.Id,
+             UserId = user.Id,
+             Gender = dto.Gender,
+             NationalId = dto.NationalId,
+             GroomName = dto.Gender == "groom" ? dto.FullName : null,
+             BrideName = dto.Gender == "bride" ? dto.FullName : null,
+             GroomPhone = dto.Gender == "groom" ? dto.Phone : null,
+             BridePhone = dto.Gender == "bride" ? dto.Phone : null,
+             CreatedAt = DateTime.UtcNow
+         };*/
         var client = new Client
         {
             Id = user.Id,
+            UserId = user.Id,
             Gender = dto.Gender,
             NationalId = dto.NationalId,
-            GroomName = dto.Gender == "groom" ? dto.FullName : null,
-            BrideName = dto.Gender == "bride" ? dto.FullName : null,
-            GroomPhone = dto.Gender == "groom" ? dto.Phone : null,
-            BridePhone = dto.Gender == "bride" ? dto.Phone : null,
+            GroomName = dto.GroomName,
+            BrideName = dto.BrideName,
+            GroomPhone = dto.GroomPhone,
+            BridePhone = dto.BridePhone,
+            Budget = dto.Budget,
+            BudgetCategory = dto.BudgetCategory,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -231,19 +247,97 @@ public class AuthService : IAuthService
         var provider = new ServiceProvider
         {
             Id = user.Id,
+            UserId = user.Id,
+            Name = dto.Name,
             BusinessName = dto.BusinessName,
             Category = dto.Category,
-            Status = "pending",
+            Location = dto.Location,
+            Description = dto.Description,
+            Status = "Inactive",       // مش شغّال (Active/Inactive/Suspended/Banned) لحد ما يوافَق عليه
+            ProviderStatus = "pending", // حالة مراجعة الطلب (pending/approved/rejected)
             Phone = dto.Phone,
             Rating = 0,
             ReviewCount = 0,
-            PriceFrom = 0
+            PriceFrom = dto.PriceFrom
         };
 
         _db.ServiceProviders.Add(provider);
         await _db.SaveChangesAsync();
 
         return "تم تسجيل طلبك بنجاح، في انتظار موافقة الإدارة";
+    }
+
+    // ===== CREATE SUPERVISOR (Admin only — enforced at the controller level) =====
+    public async Task<object> CreateSupervisorAsync(CreateSupervisorDto dto)
+    {
+        if (await _userManager.FindByEmailAsync(dto.Email) != null)
+            throw new Exception("البريد الإلكتروني مستخدم بالفعل");
+
+        var user = new ApplicationUser
+        {
+            UserName = dto.UserName,
+            Email = dto.Email,
+            FullName = dto.FullName,
+            PhoneNumber = dto.Phone,
+            UserType = "supervisor",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var result = await _userManager.CreateAsync(user, dto.Password);
+        if (!result.Succeeded)
+            throw new Exception(string.Join("، ", result.Errors.Select(e => e.Description)));
+
+        await _userManager.AddToRoleAsync(user, "Supervisor");
+
+        return new
+        {
+            message = "تم إنشاء حساب المشرف بنجاح",
+            userId = user.Id,
+            fullName = user.FullName,
+            email = user.Email
+        };
+    }
+
+    // ===== GET SUPERVISORS (Admin only) =====
+    public async Task<List<object>> GetSupervisorsAsync()
+    {
+        var supervisors = await _db.Users
+            .Where(u => u.UserType == "supervisor")
+            .Select(u => (object)new
+            {
+                id = u.Id,
+                fullName = u.FullName,
+                email = u.Email,
+                phone = u.PhoneNumber,
+                isActive = u.IsActive,
+                createdAt = u.CreatedAt
+            })
+            .ToListAsync();
+
+        return supervisors;
+    }
+
+    // ===== DEACTIVATE SUPERVISOR (Admin only — soft delete, keeps audit trail) =====
+    public async Task<bool> DeactivateSupervisorAsync(int id)
+    {
+        var user = await _userManager.FindByIdAsync(id.ToString());
+        if (user == null || user.UserType != "supervisor") return false;
+
+        user.IsActive = false;
+        await _userManager.UpdateAsync(user);
+        return true;
+    }
+
+    // ===== REACTIVATE SUPERVISOR (Admin only) =====
+    public async Task<bool> ReactivateSupervisorAsync(int id)
+    {
+        var user = await _userManager.FindByIdAsync(id.ToString());
+        if (user == null || user.UserType != "supervisor") return false;
+
+        user.IsActive = true;
+        await _userManager.UpdateAsync(user);
+        return true;
     }
 
     // ===== GET PROFILE =====
@@ -289,6 +383,7 @@ public class AuthService : IAuthService
                 businessName = provider == null ? null : provider.BusinessName,
                 category = provider == null ? null : provider.Category,
                 status = provider == null ? null : provider.Status,
+                providerStatus = provider == null ? null : provider.ProviderStatus,
                 location = provider == null ? null : provider.Location,
                 description = provider == null ? null : provider.Description,
                 phone = provider == null ? null : provider.Phone,
@@ -350,18 +445,18 @@ public class AuthService : IAuthService
     public async Task<List<object>> GetPendingProvidersAsync()
     {
         var providers = await _db.ServiceProviders
-            .Where(s => s.Status == "pending")
+            .Where(s => s.ProviderStatus == "pending")
             .Include(s => s.User)
             .Select(s => (object)new
             {
                 id = s.Id,
-                Id = s.Id,
                 fullName = s.User.FullName,
                 email = s.User.Email,
                 userPhone = s.User.PhoneNumber,
                 businessName = s.BusinessName,
                 category = s.Category,
                 status = s.Status,
+                providerStatus = s.ProviderStatus,
                 providerPhone = s.Phone,
                 createdAt = s.User.CreatedAt
             })
@@ -375,7 +470,9 @@ public class AuthService : IAuthService
     {
         var provider = await _db.ServiceProviders.FirstOrDefaultAsync(s => s.Id == Id);
         if (provider == null) return false;
-        provider.Status = "approved";
+        provider.ProviderStatus = "approved";
+        provider.Status = "Active";
+        provider.IsActive = true;
         await _db.SaveChangesAsync();
         return true;
     }
@@ -385,7 +482,9 @@ public class AuthService : IAuthService
     {
         var provider = await _db.ServiceProviders.FirstOrDefaultAsync(s => s.Id == Id);
         if (provider == null) return false;
-        provider.Status = "rejected";
+        provider.ProviderStatus = "rejected";
+        provider.Status = "Inactive";
+        provider.IsActive = false;
         await _db.SaveChangesAsync();
         return true;
     }

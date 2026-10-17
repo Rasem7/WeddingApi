@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace WeddingApi.core.DTOs.Bookings
 {
@@ -37,6 +37,12 @@ namespace WeddingApi.core.DTOs.Bookings
         [RegularExpression(@"^[\p{L}0-9\s,.\-!?()'""#/\n\r]*$",
             ErrorMessage = "Notes contain invalid characters.")]
         public string Notes { get; set; } = string.Empty;
+
+        // الباقة المختارة. لو اتبعتت، السعر بيتحسب تلقائيًا من الباقة ويتجاهل TotalAmount.
+        [Range(1, int.MaxValue, ErrorMessage = "ServiceId must be a positive number.")]
+        public int? ServiceId { get; set; }
+
+        // مطلوب فقط لو مفيش ServiceId (حجز يدوي بسعر متفق عليه).
         public decimal TotalAmount { get; set; }
 
         public static ValidationResult ValidateFutureDate(DateTime date, ValidationContext context)

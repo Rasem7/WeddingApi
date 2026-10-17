@@ -1,69 +1,73 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using WeddingApi.core.Common;
 using WeddingApi.core.Entities;
 using WeddingApi.core.Interfaces;
-using WeddingApi.infrastructure.Data;
 
 namespace WeddingApi.web.Controllers;
 
+// ملحوظة: ده كنترولر إدارة يدوية للعملاء (Admin/Supervisor)، مش تسجيل عميل جديد.
+// تسجيل العميل الفعلي بيتم عن طريق /api/Auth/register/client لأنه بيربط
+// الـ Client بـ ApplicationUser تلقائيًا. الكنترولر ده لسه ناقص ربط UserId
+// (راجع تعليق داخل Create) ولازم يتصلح قبل الاستخدام الفعلي في الإنتاج.
 [ApiController]
 [Route("api/[controller]")]
-//[Authorize]
+[Authorize(Roles = "Admin,Supervisor")]
 public class ClientsController : ControllerBase
 {
-    private readonly WeddingDbContext _Context;
     private readonly IUnitOfWorks _unitOfWork;
 
-    public ClientsController(WeddingDbContext Context , IUnitOfWorks unitOfWorks) {
-        _Context = Context;
+    public ClientsController(IUnitOfWorks unitOfWorks)
+    {
         _unitOfWork = unitOfWorks;
-    
     }
 
+    private static ClientDto ToDto(Client c) => new()
+    {
+        Id = c.Id,
+        UserId = c.UserId,
+        GroomName = c.GroomName,
+        BrideName = c.BrideName,
+        GroomPhone = c.GroomPhone,
+        BridePhone = c.BridePhone,
+        Gender = c.Gender,
+        NationalId = c.NationalId,
+        Budget = c.Budget,
+        BudgetCategory = c.BudgetCategory,
+        CreatedAt = c.CreatedAt
+    };
 
     [HttpGet(nameof(GetAll))]
-    public async Task<ActionResult<IEnumerable<Client>>> GetAll(
+    public async Task<IActionResult> GetAll(
        int pageNumber = 1,
        int pageSize = 10,
-       string searchText = null
-       )
+       string searchText = null)
     {
-        var query = _Context.Clients.AsQueryable();
+        var result = await _unitOfWork.Clients.SearchAsync(pageNumber, pageSize, searchText);
 
-        if (!string.IsNullOrWhiteSpace(searchText))
+        if (!result.Data.Any())
+            return NotFound();
+
+        var dtoResult = new PagedResult<ClientDto>
         {
-            query = query.Where(x =>
-                (x.BrideName ?? "").Contains(searchText.Trim()) || (x.GroomName ?? "").Contains(searchText.Trim()) ||
-                (x.BridePhone ?? "").Contains(searchText.Trim()) || (x.GroomPhone ?? "").Contains(searchText.Trim()));
+            Data = result.Data.Select(ToDto).ToList(),
+            TotalCount = result.TotalCount,
+            Page = result.Page,
+            PageSize = result.PageSize
+        };
 
-        }
-      
-
-        var clients = await query
-            .OrderByDescending(x => x.Id)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-
-        if (!clients.Any())
-            return NotFound();
-
-        return Ok(clients);
+        return Ok(dtoResult);
     }
-    [HttpGet(nameof(GetAllWithoutPaging))]
-    public async Task<ActionResult<IEnumerable<Client>>> GetAllWithoutPaging(
- )
-    {
-        var query = _Context.Clients.AsQueryable();
 
-        var clients = await query
-            .OrderByDescending(x => x.Id)
-            .ToListAsync(); 
+    [HttpGet(nameof(GetAllWithoutPaging))]
+    public async Task<IActionResult> GetAllWithoutPaging()
+    {
+        var clients = await _unitOfWork.Clients.GetAllWithoutPagingAsync();
 
         if (!clients.Any())
             return NotFound();
 
-        return Ok(clients);
+        return Ok(clients.Select(ToDto));
     }
 
     
@@ -91,16 +95,16 @@ public class ClientsController : ControllerBase
     [HttpPost(nameof(Create))]
     public async Task<IActionResult> Create(CreateClientDto dto)
     {
-        var client = new Client
+        // TODO (خارج نطاق إصلاحات الأمان العاجلة): CreateClientDto مفيهوش UserId،
+        // وClient.UserId مطلوب وفريد (FK لـ AspNetUsers). حاليًا الإندبوينت ده
+        // هيفشل عند الحفظ لأن UserId هيبقى 0 (مفيش يوزر بالرقم ده). محتاج نضيف
+        // UserId للـ DTO ونتأكد إن اليوزر موجود ومالوش Client مرتبط بيه قبليها،
+        // أو نلغي الإندبوينت ده تمامًا ونخلي التسجيل يتم فقط عن طريق
+        // /api/Auth/register/client. هرجعلها في مرحلة تصحيح النموذج (Phase 1).
+        return await Task.FromResult<IActionResult>(BadRequest(new
         {
-            GroomName = dto.GroomName,
-            BrideName = dto.BrideName,
-            GroomPhone = dto.GroomPhone,
-            BridePhone = dto.BridePhone,            
-            Budget = dto.Budget
-        };
-        var created = await _unitOfWork.Clients.CreateAsync(client);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+            message = "إنشاء عميل مباشر عبر هذا الإندبوينت غير مفعّل حاليًا. استخدم /api/Auth/register/client لتسجيل عميل جديد مرتبط بحساب مستخدم."
+        }));
     }
     [HttpPost(nameof(Update))]
     public async Task<IActionResult> Update([FromQuery] int id, [FromBody] CreateClientDto dto)
@@ -119,6 +123,7 @@ public class ClientsController : ControllerBase
     }
 
     [HttpPost(nameof(Delete))]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
         var client = await _unitOfWork.Clients.GetByIdAsync(id);
