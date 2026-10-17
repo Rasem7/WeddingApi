@@ -361,3 +361,13 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# ===== Publish output (never commit build/publish artifacts) =====
+publish-*/
+
+# ===== Local / production settings with real secrets =====
+# appsettings.json stays tracked with EMPTY placeholders only.
+# Real values go in user-secrets (dev) or environment variables / server-only file (prod).
+appsettings.Production.json
+appsettings.*.local.json
+secrets.json
