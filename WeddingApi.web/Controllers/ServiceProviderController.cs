@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using WeddingApi.core.Interfaces;
 using WeddingApi.infrastructure.Data;
 using WeddingApi.infrastructure.UnitOfWorks;
@@ -18,6 +19,12 @@ public class ServiceProviderController : ControllerBase
         //_db = db;
         _unitOfWork = unitOfWork;
 	}
+
+    private bool IsStaff => User.IsInRole("Admin") || User.IsInRole("Supervisor");
+
+    // true لو اليوزر الحالي هو نفسه صاحب الـ ServiceProvider ده (Id بتاعه = Id بتاع اليوزر).
+    private bool IsOwner(int providerId) =>
+        int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var me) && me == providerId;
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] string category)
@@ -37,11 +44,18 @@ public class ServiceProviderController : ControllerBase
         if (serviceProvider == null) return NotFound();*/
 		var serviceProvider = await _unitOfWork.ServiceProviders.GetByIdAsync(id);
 		if (serviceProvider == null) return NotFound();
+
+		// المزود غير المعتمد/المعطّل مش بيظهر للعامة، بس لصاحبه والأدمن/المشرف.
+		var isPublic = serviceProvider.IsActive && serviceProvider.ProviderStatus == "approved";
+		if (!isPublic && !IsStaff && !IsOwner(id)) return NotFound();
+
 		return Ok(serviceProvider);
     }
 
+    // إنشاء مزود يدويًا للأدمن فقط. التسجيل العادي بيتم عن طريق /api/Auth/register/provider
+    // (وبيعدّي على مراجعة الأدمن). أي يوزر مسجل كان يقدر يعمل مزود "approved" مباشرة.
     [HttpPost]
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create(ServiceProvider sp)
     {
 		/*_db.ServiceProviders.Add(serviceProvider);
@@ -53,7 +67,7 @@ public class ServiceProviderController : ControllerBase
 	}
 
     [HttpPut("{id}")]
-    [Authorize]
+    [Authorize(Roles = "Provider,Admin,Supervisor")]
     public async Task<IActionResult> Update(int id, ServiceProvider sp)
     {
 		/* var existing = await _db.ServiceProviders.FindAsync(id);
@@ -74,15 +88,23 @@ public class ServiceProviderController : ControllerBase
 		var existing = await _unitOfWork.ServiceProviders.GetByIdAsync(id);
 		if (existing == null) return NotFound();
 
+		// المزود يعدّل بياناته هو بس. الأدمن/المشرف يعدّلوا أي مزود.
+		if (!IsStaff && !IsOwner(id)) return Forbid();
+
 		existing.Name = sp.Name;
 		existing.Category = sp.Category;
 		existing.Location = sp.Location;
-		existing.Rating = sp.Rating;
-		existing.ReviewCount = sp.ReviewCount;
 		existing.PriceFrom = sp.PriceFrom;
 		existing.Description = sp.Description;
 		existing.Phone = sp.Phone;
-		existing.IsActive = sp.IsActive;
+
+		// التقييم وعدد المراجعات وحالة التفعيل: للأدمن/المشرف بس (المزود ميقدرش يرفع تقييمه بنفسه).
+		if (IsStaff)
+		{
+			existing.Rating = sp.Rating;
+			existing.ReviewCount = sp.ReviewCount;
+			existing.IsActive = sp.IsActive;
+		}
 
 		_unitOfWork.ServiceProviders.Update(existing);
 		await _unitOfWork.CompleteAsync();
@@ -91,7 +113,7 @@ public class ServiceProviderController : ControllerBase
 	}
 
     [HttpDelete("{id}")]
-    [Authorize]
+    [Authorize(Roles = "Provider,Admin,Supervisor")]
     public async Task<IActionResult> Delete(int id)
     {
 		/* var ServiceProvider = await _db.ServiceProviders.FindAsync(id);
@@ -101,6 +123,8 @@ public class ServiceProviderController : ControllerBase
 		 return NoContent();*/
 		var sp = await _unitOfWork.ServiceProviders.GetByIdAsync(id);
 		if (sp == null) return NotFound();
+
+		if (!IsStaff && !IsOwner(id)) return Forbid();
 
 		sp.IsActive = false; // Soft delete
 		_unitOfWork.ServiceProviders.Update(sp);

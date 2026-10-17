@@ -40,7 +40,34 @@ public class BookingsController : ControllerBase
         CreatedAt = b.CreatedAt
     };
 
+    private static readonly string[] AllowedStatuses =
+        { "Pending", "Confirmed", "Cancelled", "Completed", "Refunded" };
+
+    private bool IsStaff => User.IsInRole("Admin") || User.IsInRole("Supervisor");
+
+    private int? MyId =>
+        int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
+
+    // مين يقدر يشوف/يتعامل مع الحجز ده: الأدمن/المشرف، العميل صاحب الحجز (أو شريكه المربوط)،
+    // أو مزود الخدمة صاحب الباقة المحجوزة.
+    private bool CanAccess(Booking b)
+    {
+        if (IsStaff) return true;
+        var me = MyId;
+        if (me == null) return false;
+
+        if (User.IsInRole("Client"))
+            return b.ClientId == me || (b.Client != null && b.Client.LinkedPartnerId == me);
+
+        if (User.IsInRole("Provider"))
+            return b.Service != null && b.Service.ServiceProviderId == me;
+
+        return false;
+    }
+
+    // كل الحجوزات: للأدمن/المشرف بس. العميل والمزود يستخدموا GetMine.
     [HttpGet(nameof(GetAll))]
+    [Authorize(Roles = "Admin,Supervisor")]
     public async Task<IActionResult> GetAll(
         int pageNumber = 1,
         int pageSize = 10,
@@ -66,6 +93,7 @@ public class BookingsController : ControllerBase
 
 
     [HttpGet(nameof(GetAllWithoutPaging))]
+    [Authorize(Roles = "Admin,Supervisor")]
     public async Task<IActionResult> GetAllWithoutPaging()
     {
         var bookings = await _unitOfWork.Bookings.GetAllWithClientAsync();
@@ -76,11 +104,41 @@ public class BookingsController : ControllerBase
         return Ok(bookings.Select(ToDto));
     }
 
+    // حجوزاتي: العميل يشوف حجوزاته وحجوزات شريكه المربوط، والمزود يشوف حجوزات باقاته.
+    [HttpGet(nameof(GetMine))]
+    [Authorize(Roles = "Client,Provider")]
+    public async Task<IActionResult> GetMine()
+    {
+        var me = MyId;
+        if (me == null) return Unauthorized();
+
+        List<Booking> bookings;
+        if (User.IsInRole("Provider"))
+        {
+            bookings = await _unitOfWork.Bookings.GetByProviderIdAsync(me.Value);
+        }
+        else
+        {
+            bookings = await _unitOfWork.Bookings.GetByClientIdAsync(me.Value);
+
+            var client = await _unitOfWork.Clients.GetByIdAsync(me.Value);
+            if (client != null && client.LinkedPartnerId > 0)
+            {
+                var partnerBookings = await _unitOfWork.Bookings.GetByClientIdAsync(client.LinkedPartnerId);
+                bookings = bookings.Concat(partnerBookings).OrderByDescending(b => b.WeddingDate).ToList();
+            }
+        }
+
+        return Ok(bookings.Select(ToDto));
+    }
+
     [HttpGet(nameof(GetById))]
     public async Task<IActionResult> GetById(int id)
     {
         var booking = await _unitOfWork.Bookings.GetByIdAsync(id);
         if (booking == null) return NotFound();
+
+        if (!CanAccess(booking)) return Forbid();
 
         var result = new
         {
@@ -111,6 +169,7 @@ public class BookingsController : ControllerBase
     //    => Ok(await _repo.GetCalendarAsync(year, month));
 
     [HttpGet(nameof(GetCalendar))]
+    [Authorize(Roles = "Admin,Supervisor")]
     public async Task<IActionResult> GetCalendar([FromQuery] int year, [FromQuery] int month)
     {
         var bookings = await _unitOfWork.Bookings.GetCalendarAsync(year, month);
@@ -183,11 +242,28 @@ public class BookingsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, ToDto(full ?? created));
     }
 
+    // تغيير حالة الحجز:
+    //  - الأدمن/المشرف: أي حالة على أي حجز.
+    //  - المزود: على حجوزات باقاته بس.
+    //  - العميل: يلغي حجزه هو بس (Cancelled).
     [HttpPost(nameof(UpdateStatus))]
-    [Authorize(Roles = "Admin,Supervisor,Provider")]
+    [Authorize(Roles = "Admin,Supervisor,Provider,Client")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] string status)
     {
-        var updated = await _unitOfWork.Bookings.UpdateStatusAsync(id, status);
-        return Ok(updated);
+        if (string.IsNullOrWhiteSpace(status) || !AllowedStatuses.Contains(status))
+            return BadRequest(new { message = $"الحالة غير صحيحة. القيم المسموحة: {string.Join(", ", AllowedStatuses)}" });
+
+        var booking = await _unitOfWork.Bookings.GetByIdAsync(id);
+        if (booking == null) return NotFound();
+
+        if (!CanAccess(booking)) return Forbid();
+
+        if (User.IsInRole("Client") && !IsStaff && status != "Cancelled")
+            return Forbid();
+
+        await _unitOfWork.Bookings.UpdateStatusAsync(id, status);
+
+        var updated = await _unitOfWork.Bookings.GetByIdAsync(id);
+        return Ok(ToDto(updated ?? booking));
     }
 }

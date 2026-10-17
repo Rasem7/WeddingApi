@@ -88,7 +88,13 @@ public class BookingRepository : IBookingRepository
             .ToListAsync();
 
     public async Task<List<Booking>> GetByClientIdAsync(int clientId) =>
-        await _db.Bookings.Where(b => b.ClientId == clientId)
+        await _db.Bookings.Include(b => b.Client).Include(b => b.Service)
+            .Where(b => b.ClientId == clientId)
+            .OrderByDescending(b => b.WeddingDate).ToListAsync();
+
+    public async Task<List<Booking>> GetByProviderIdAsync(int serviceProviderId) =>
+        await _db.Bookings.Include(b => b.Client).Include(b => b.Service)
+            .Where(b => b.Service != null && b.Service.ServiceProviderId == serviceProviderId)
             .OrderByDescending(b => b.WeddingDate).ToListAsync();
 
     public async Task<List<Booking>> GetCalendarAsync(int year, int month) =>

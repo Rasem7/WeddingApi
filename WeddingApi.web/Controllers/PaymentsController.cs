@@ -1,5 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using WeddingApi.core.DTOs.Payments;
 using WeddingApi.core.Entities;
 using WeddingApi.core.Interfaces;
@@ -13,6 +14,27 @@ public class PaymentsController : ControllerBase
 {
     private readonly IUnitOfWorks _unitOfWork;
     public PaymentsController(IUnitOfWorks unitOfWork) => _unitOfWork = unitOfWork;
+
+    private bool IsStaff => User.IsInRole("Admin") || User.IsInRole("Supervisor");
+
+    private int? MyId =>
+        int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
+
+    // نفس قاعدة BookingsController: الأدمن/المشرف، العميل صاحب الحجز (أو شريكه)، أو مزود الباقة.
+    private bool CanAccess(Booking b)
+    {
+        if (IsStaff) return true;
+        var me = MyId;
+        if (me == null) return false;
+
+        if (User.IsInRole("Client"))
+            return b.ClientId == me || (b.Client != null && b.Client.LinkedPartnerId == me);
+
+        if (User.IsInRole("Provider"))
+            return b.Service != null && b.Service.ServiceProviderId == me;
+
+        return false;
+    }
 
     private static PaymentDto ToDto(Payment p) => new()
     {
@@ -40,6 +62,10 @@ public class PaymentsController : ControllerBase
     {
         var payment = await _unitOfWork.Payments.GetByIdAsync(id);
         if (payment == null) return NotFound();
+
+        var booking = await _unitOfWork.Bookings.GetByIdAsync(payment.BookingId);
+        if (booking == null || !CanAccess(booking)) return Forbid();
+
         return Ok(ToDto(payment));
     }
 
@@ -50,6 +76,8 @@ public class PaymentsController : ControllerBase
     {
         var booking = await _unitOfWork.Bookings.GetByIdAsync(bookingId);
         if (booking == null) return NotFound(new { message = "الحجز غير موجود" });
+
+        if (!CanAccess(booking)) return Forbid();
 
         var payments = await _unitOfWork.Payments.GetByBookingIdAsync(bookingId);
         var totalPaid = payments.Sum(p => p.Amount);
@@ -67,12 +95,17 @@ public class PaymentsController : ControllerBase
     // POST: api/Payments/Create
     // تسجيل دفعة جديدة على حجز، وتأكيد الحجز تلقائيًا لو اتغطى المبلغ بالكامل.
     [HttpPost(nameof(Create))]
-    [Authorize(Roles = "Client,Admin,Supervisor,Provider")]
+    // مؤقتًا: تسجيل الدفعات للأدمن/المشرف/المزود صاحب الحجز بس (استلام كاش في المقر مثلًا).
+    // العميل ميقدرش يسجّل دفعة بنفسه، لأن مفيش بوابة دفع تتحقق منها لسه، وكان يقدر يأكّد
+    // حجزه من غير ما يدفع. الدفع الإلكتروني هيدخل مع تكامل بوابة الدفع (Webhook).
+    [Authorize(Roles = "Admin,Supervisor,Provider")]
     public async Task<IActionResult> Create(CreatePaymentDto dto)
     {
         var booking = await _unitOfWork.Bookings.GetByIdAsync(dto.BookingId);
         if (booking == null)
             return NotFound(new { message = "الحجز غير موجود" });
+
+        if (!CanAccess(booking)) return Forbid();
 
         if (booking.Status is "Cancelled" or "Refunded")
             return BadRequest(new { message = "لا يمكن تسجيل دفعة على حجز ملغي أو مسترد." });

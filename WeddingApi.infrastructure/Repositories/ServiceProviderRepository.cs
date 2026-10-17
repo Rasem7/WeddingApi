@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,7 +26,7 @@ namespace WeddingApi.infrastructure.Repositories
 
 		public async Task<IEnumerable<ServiceProvider>> GetActiveByCategoryAsync(string? category)
 		{
-			var query = _db.ServiceProviders.Where(sp => sp.IsActive); // Only active service providers
+			var query = _db.ServiceProviders.Where(sp => sp.IsActive && sp.ProviderStatus == "approved"); // Only active service providers
 			if (!string.IsNullOrEmpty(category) && category != "الكل") // Filter by category if not "الكل"
 				query = query.Where(sp => sp.Category == category);
 

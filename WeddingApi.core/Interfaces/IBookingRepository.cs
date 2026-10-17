@@ -1,4 +1,4 @@
-﻿using WeddingApi.core.Common;
+using WeddingApi.core.Common;
 using WeddingApi.core.Entities;
 
 namespace WeddingApi.core.Interfaces
@@ -10,6 +10,7 @@ namespace WeddingApi.core.Interfaces
         Task<List<Booking>> GetAllWithClientAsync();
         Task<Booking?> GetByIdAsync(int id);
         Task<List<Booking>> GetByClientIdAsync(int clientId);
+        Task<List<Booking>> GetByProviderIdAsync(int serviceProviderId);
         Task<List<Booking>> GetCalendarAsync(int year, int month);
         Task<Booking> CreateAsync(Booking booking);
         Task<Booking> UpdateStatusAsync(int id, string status);

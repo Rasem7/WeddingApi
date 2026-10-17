@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using WeddingApi.core.DTOs.Auth;
@@ -28,7 +28,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> RegisterClient(RegisterClientDto dto)
     {
         try { return Ok(await _auth.RegisterClientAsync(dto)); }
-        catch (Exception ex) { return BadRequest(new { message = ex.InnerException?.Message ?? ex.Message }); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
         //catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
