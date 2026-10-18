@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,6 +20,7 @@ namespace WeddingApi.infrastructure.UnitOfWorks
         private IPaymentRepository _paymentRepository;
         private IMediaRepository _mediaRepository;
         private IServiceRepository _serviceRepository;
+        private IAvailabilityRepository _availabilityRepository;
 
 
 		public UnitOfWork(WeddingDbContext context)
@@ -84,6 +85,16 @@ namespace WeddingApi.infrastructure.UnitOfWorks
 				if (_serviceRepository == null)
 					_serviceRepository = new ServiceRepository(_context);
 				return _serviceRepository;
+			}
+		}
+
+		public IAvailabilityRepository Availability
+		{
+			get
+			{
+				if (_availabilityRepository == null)
+					_availabilityRepository = new AvailabilityRepository(_context);
+				return _availabilityRepository;
 			}
 		}
 

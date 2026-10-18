@@ -11,6 +11,8 @@ namespace WeddingApi.core.Interfaces
         Task<Booking?> GetByIdAsync(int id);
         Task<List<Booking>> GetByClientIdAsync(int clientId);
         Task<List<Booking>> GetByProviderIdAsync(int serviceProviderId);
+        Task<int> CountActiveForProviderOnDateAsync(int serviceProviderId, DateTime date);
+        Task<List<DateTime>> GetActiveBookingDatesAsync(int serviceProviderId, DateTime from, DateTime to);
         Task<List<Booking>> GetCalendarAsync(int year, int month);
         Task<Booking> CreateAsync(Booking booking);
         Task<Booking> UpdateStatusAsync(int id, string status);

@@ -97,6 +97,31 @@ public class BookingRepository : IBookingRepository
             .Where(b => b.Service != null && b.Service.ServiceProviderId == serviceProviderId)
             .OrderByDescending(b => b.WeddingDate).ToListAsync();
 
+    // الحجوزات اللي بتحجز اليوم فعليًا: Pending و Confirmed بس.
+    public async Task<int> CountActiveForProviderOnDateAsync(int serviceProviderId, DateTime date)
+    {
+        var start = date.Date;
+        var end = start.AddDays(1);
+        return await _db.Bookings.CountAsync(b =>
+            b.Service != null && b.Service.ServiceProviderId == serviceProviderId
+            && b.WeddingDate >= start && b.WeddingDate < end
+            && (b.Status == "Pending" || b.Status == "Confirmed"));
+    }
+
+    public async Task<List<DateTime>> GetActiveBookingDatesAsync(int serviceProviderId, DateTime from, DateTime to)
+    {
+        var start = from.Date;
+        var end = to.Date.AddDays(1);
+        var dates = await _db.Bookings
+            .Where(b => b.Service != null && b.Service.ServiceProviderId == serviceProviderId
+                && b.WeddingDate >= start && b.WeddingDate < end
+                && (b.Status == "Pending" || b.Status == "Confirmed"))
+            .Select(b => b.WeddingDate)
+            .ToListAsync();
+
+        return dates.Select(d => d.Date).ToList();
+    }
+
     public async Task<List<Booking>> GetCalendarAsync(int year, int month) =>
         await _db.Bookings.Include(b => b.Client)
             .Where(b => b.WeddingDate.Year == year && b.WeddingDate.Month == month)

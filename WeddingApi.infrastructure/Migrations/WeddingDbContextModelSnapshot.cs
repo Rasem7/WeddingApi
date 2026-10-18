@@ -395,6 +395,35 @@ namespace WeddingApi.infrastructure.Migrations
                     b.ToTable("Payments");
                 });
 
+            modelBuilder.Entity("WeddingApi.core.Entities.ProviderBlockedDate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<int>("ServiceProviderId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceProviderId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("ProviderBlockedDates");
+                });
+
             modelBuilder.Entity("WeddingApi.core.Entities.Service", b =>
                 {
                     b.Property<int>("Id")
@@ -622,6 +651,17 @@ namespace WeddingApi.infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Booking");
+                });
+
+            modelBuilder.Entity("WeddingApi.core.Entities.ProviderBlockedDate", b =>
+                {
+                    b.HasOne("WeddingApi.core.Entities.ServiceProvider", "ServiceProvider")
+                        .WithMany()
+                        .HasForeignKey("ServiceProviderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ServiceProvider");
                 });
 
             modelBuilder.Entity("WeddingApi.core.Entities.Service", b =>
