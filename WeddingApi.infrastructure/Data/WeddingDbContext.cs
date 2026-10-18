@@ -15,6 +15,7 @@ public class WeddingDbContext : IdentityDbContext<ApplicationUser, IdentityRole<
     public DbSet<ServiceProvider> ServiceProviders => Set<ServiceProvider>();
     public DbSet<ServiceProviderMedia> ServiceProviderMedias { get; set; }
     public DbSet<Service> Services => Set<Service>();
+    public DbSet<ProviderBlockedDate> ProviderBlockedDates => Set<ProviderBlockedDate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -73,6 +74,17 @@ public class WeddingDbContext : IdentityDbContext<ApplicationUser, IdentityRole<
             .WithMany(sp => sp.Services)
             .HasForeignKey(s => s.ServiceProviderId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // ===== ProviderBlockedDate → ServiceProvider (أيام مقفولة) =====
+        modelBuilder.Entity<ProviderBlockedDate>(e =>
+        {
+            e.Property(b => b.Date).HasColumnType("date");
+            e.HasIndex(b => new { b.ServiceProviderId, b.Date }).IsUnique();
+            e.HasOne(b => b.ServiceProvider)
+                .WithMany()
+                .HasForeignKey(b => b.ServiceProviderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
         // ===== Decimal Precision =====
         modelBuilder.Entity<Client>()

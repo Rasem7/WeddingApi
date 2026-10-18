@@ -14,10 +14,12 @@ namespace WeddingApi.web.Controllers;
 public class BookingsController : ControllerBase
 {
     private readonly IUnitOfWorks _unitOfWork;
+    private readonly IAvailabilityService _availability;
 
-    public BookingsController(IUnitOfWorks unitOfWorks)
+    public BookingsController(IUnitOfWorks unitOfWorks, IAvailabilityService availability)
     {
         _unitOfWork = unitOfWorks;
+        _availability = availability;
     }
 
     private static BookingDto ToDto(Booking b) => new()
@@ -213,6 +215,12 @@ public class BookingsController : ControllerBase
                 || !service.ServiceProvider.IsActive || service.ServiceProvider.ProviderStatus != "approved")
                 return BadRequest(new { message = "هذه الباقة غير متاحة للحجز حاليًا." });
 
+            // اليوم لازم يكون متاح عند المزود (مش مقفول ومعدّاش السعة اليومية).
+            var availability = await _availability.CheckAsync(
+                service.ServiceProviderId, service.ServiceProvider.Category, dto.WeddingDate);
+            if (!availability.Available)
+                return Conflict(new { message = availability.Reason });
+
             totalAmount = service.Price; // السعر من الباقة دايمًا (نتجاهل أي مبلغ جاي من العميل)
         }
         else
@@ -260,6 +268,20 @@ public class BookingsController : ControllerBase
 
         if (User.IsInRole("Client") && !IsStaff && status != "Cancelled")
             return Forbid();
+
+        // إعادة تفعيل حجز ملغي/مسترد (Cancelled/Refunded → Pending/Confirmed): نتأكد إن اليوم لسه متاح.
+        var isReactivation = (status == "Pending" || status == "Confirmed")
+                             && booking.Status != "Pending" && booking.Status != "Confirmed";
+        if (isReactivation && booking.Service != null)
+        {
+            var provider = await _unitOfWork.ServiceProviders.GetByIdAsync(booking.Service.ServiceProviderId);
+            if (provider != null)
+            {
+                var availability = await _availability.CheckAsync(provider.Id, provider.Category, booking.WeddingDate);
+                if (!availability.Available)
+                    return Conflict(new { message = availability.Reason });
+            }
+        }
 
         await _unitOfWork.Bookings.UpdateStatusAsync(id, status);
 

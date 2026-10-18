@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using WeddingApi.core.Entities;
 
@@ -17,7 +18,18 @@ public static class DbInitializer
         }
 
         // ===== Admin User =====
-        var adminEmail = "admin@wedding.com";
+        // بيانات الأدمن بتتقرأ من الإعدادات (user-secrets / متغيرات البيئة) مش مكتوبة في الكود،
+        // لأن الكود على GitHub عام وأي حد كان هيعرف إيميل وباسورد الأدمن.
+        var config = services.GetRequiredService<IConfiguration>();
+        var adminEmail = config["AdminSettings:Email"];
+        var adminPassword = config["AdminSettings:Password"];
+
+        if (string.IsNullOrWhiteSpace(adminEmail) || string.IsNullOrWhiteSpace(adminPassword))
+        {
+            Console.WriteLine("[Seed] AdminSettings:Email / AdminSettings:Password غير مضبوطين — تم تخطي إنشاء حساب الأدمن.");
+            return;
+        }
+
         var adminUser = await userManager.FindByEmailAsync(adminEmail);
 
         if (adminUser == null)
@@ -31,7 +43,14 @@ public static class DbInitializer
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
-            await userManager.CreateAsync(adminUser, "Admin@123");
+
+            var created = await userManager.CreateAsync(adminUser, adminPassword);
+            if (!created.Succeeded)
+            {
+                Console.WriteLine("[Seed] فشل إنشاء الأدمن: " + string.Join("; ", created.Errors.Select(e => e.Description)));
+                return;
+            }
+
             await userManager.AddToRoleAsync(adminUser, "Admin");
         }
     }

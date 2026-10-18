@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -107,6 +107,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IClientRepository, ClientRepository>();
 builder.Services.AddScoped<IBookingRepository, BookingRepository>();
 builder.Services.AddScoped<IUnitOfWorks, UnitOfWork>();
+builder.Services.AddScoped<IAvailabilityService, AvailabilityService>();
 
 // ===== File Upload =====
 builder.Services.Configure<FormOptions>(o =>
@@ -125,13 +126,12 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-app.MapGet("/hash", () => BCrypt.Net.BCrypt.HashPassword("Admin@123"));
 
 // ===== Migrations =====
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<WeddingDbContext>();
-    db.Database.EnsureCreated();
+    db.Database.Migrate();
 }
 
 // ===== Seed Data =====

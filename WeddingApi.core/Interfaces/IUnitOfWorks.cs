@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,6 +15,7 @@ namespace WeddingApi.core.Interfaces
 		IPaymentRepository Payments { get; }
 		IMediaRepository Media { get; }
 		IServiceRepository Services { get; }
+		IAvailabilityRepository Availability { get; }
 		Task<int> CompleteAsync();
     }
 }
