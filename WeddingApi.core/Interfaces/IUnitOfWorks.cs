@@ -16,6 +16,7 @@ namespace WeddingApi.core.Interfaces
 		IMediaRepository Media { get; }
 		IServiceRepository Services { get; }
 		IAvailabilityRepository Availability { get; }
-		Task<int> CompleteAsync();
+        ITaskItemRepository TaskItems { get; }
+        Task<int> CompleteAsync();
     }
 }

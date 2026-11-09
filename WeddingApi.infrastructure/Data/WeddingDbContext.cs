@@ -16,6 +16,7 @@ public class WeddingDbContext : IdentityDbContext<ApplicationUser, IdentityRole<
     public DbSet<ServiceProviderMedia> ServiceProviderMedias { get; set; }
     public DbSet<Service> Services => Set<Service>();
     public DbSet<ProviderBlockedDate> ProviderBlockedDates => Set<ProviderBlockedDate>();
+    public DbSet<TaskItem> TaskItems => Set<TaskItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -84,6 +85,17 @@ public class WeddingDbContext : IdentityDbContext<ApplicationUser, IdentityRole<
                 .WithMany()
                 .HasForeignKey(b => b.ServiceProviderId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ===== TaskItem → Client (قائمة مهام الزوجين) =====
+        modelBuilder.Entity<TaskItem>(e =>
+        {
+            e.HasIndex(t => t.OwnerClientId);
+            e.HasOne(t => t.OwnerClient)
+                .WithMany()
+                .HasForeignKey(t => t.OwnerClientId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.Property(t => t.EstimatedCost).HasPrecision(18, 2);
         });
 
         // ===== Decimal Precision =====
