@@ -361,6 +361,44 @@ namespace WeddingApi.infrastructure.Migrations
                     b.ToTable("Clients");
                 });
 
+            modelBuilder.Entity("WeddingApi.core.Entities.PartnerInvite", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("nvarchar(12)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("InviterClientId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("UsedByClientId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("InviterClientId");
+
+                    b.ToTable("PartnerInvites");
+                });
+
             modelBuilder.Entity("WeddingApi.core.Entities.Payment", b =>
                 {
                     b.Property<int>("Id")
@@ -692,6 +730,17 @@ namespace WeddingApi.infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("WeddingApi.core.Entities.PartnerInvite", b =>
+                {
+                    b.HasOne("WeddingApi.core.Entities.Client", "InviterClient")
+                        .WithMany()
+                        .HasForeignKey("InviterClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InviterClient");
                 });
 
             modelBuilder.Entity("WeddingApi.core.Entities.Payment", b =>

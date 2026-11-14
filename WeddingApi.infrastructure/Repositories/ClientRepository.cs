@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using WeddingApi.core.Common;
 using WeddingApi.core.Entities;
 using WeddingApi.core.Interfaces;
@@ -83,7 +83,7 @@ public class ClientRepository : IClientRepository
         // Auto budget category
         client.BudgetCategory = client.Budget switch
         {
-            < 30000 => "Economical",
+            < 30000 => "Economy",
             < 70000 => "Standard",
             < 150000 => "Premium",
             _ => "Luxury"
@@ -97,7 +97,7 @@ public class ClientRepository : IClientRepository
     {
         client.BudgetCategory = client.Budget switch
         {
-            < 30000 => "Economical",
+            < 30000 => "Economy",
             < 70000 => "Standard",
             < 150000 => "Premium",
             _ => "Luxury"

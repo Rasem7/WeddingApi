@@ -22,9 +22,10 @@ namespace WeddingApi.infrastructure.UnitOfWorks
         private IServiceRepository _serviceRepository;
         private IAvailabilityRepository _availabilityRepository;
         private ITaskItemRepository _taskItemRepository;
+        private IPartnerRepository _partnerRepository;
 
 
-        public UnitOfWork(WeddingDbContext context)
+		public UnitOfWork(WeddingDbContext context)
         {
             _context = context;
         }
@@ -99,15 +100,25 @@ namespace WeddingApi.infrastructure.UnitOfWorks
 			}
 		}
 
-        public ITaskItemRepository TaskItems
-        {
-            get
-            {
-                if (_taskItemRepository == null)
-                    _taskItemRepository = new TaskItemRepository(_context);
-                return _taskItemRepository;
-            }
-        }
+		public ITaskItemRepository TaskItems
+		{
+			get
+			{
+				if (_taskItemRepository == null)
+					_taskItemRepository = new TaskItemRepository(_context);
+				return _taskItemRepository;
+			}
+		}
+
+		public IPartnerRepository Partners
+		{
+			get
+			{
+				if (_partnerRepository == null)
+					_partnerRepository = new PartnerRepository(_context);
+				return _partnerRepository;
+			}
+		}
 
 		public async Task<int> CompleteAsync()
         {

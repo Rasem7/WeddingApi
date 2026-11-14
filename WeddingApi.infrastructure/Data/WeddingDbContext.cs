@@ -17,6 +17,7 @@ public class WeddingDbContext : IdentityDbContext<ApplicationUser, IdentityRole<
     public DbSet<Service> Services => Set<Service>();
     public DbSet<ProviderBlockedDate> ProviderBlockedDates => Set<ProviderBlockedDate>();
     public DbSet<TaskItem> TaskItems => Set<TaskItem>();
+    public DbSet<PartnerInvite> PartnerInvites => Set<PartnerInvite>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -96,6 +97,17 @@ public class WeddingDbContext : IdentityDbContext<ApplicationUser, IdentityRole<
                 .HasForeignKey(t => t.OwnerClientId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.Property(t => t.EstimatedCost).HasPrecision(18, 2);
+        });
+
+        // ===== PartnerInvite → Client (كود دعوة ربط العريس بالعروسة) =====
+        modelBuilder.Entity<PartnerInvite>(e =>
+        {
+            e.HasIndex(i => i.Code).IsUnique();
+            e.HasIndex(i => i.InviterClientId);
+            e.HasOne(i => i.InviterClient)
+                .WithMany()
+                .HasForeignKey(i => i.InviterClientId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ===== Decimal Precision =====

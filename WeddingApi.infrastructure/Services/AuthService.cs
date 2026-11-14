@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -203,8 +203,8 @@ public class AuthService : IAuthService
         _db.Clients.Add(client);
         await _db.SaveChangesAsync();
 
-        if (!string.IsNullOrEmpty(dto.NationalId))
-            await LinkPartnerAsync(client, dto.NationalId);
+        // الربط بين العريس والعروسة بقى بكود دعوة (PartnersController) مش بالرقم القومي،
+        // عشان محدش يقدر يتربط بحساب غيره لمجرد إنه يعرف الرقم القومي.
 
         var roles = await _userManager.GetRolesAsync(user);
         var token = GenerateToken(user, roles, false);
@@ -487,19 +487,6 @@ public class AuthService : IAuthService
         provider.IsActive = false;
         await _db.SaveChangesAsync();
         return true;
-    }
-
-    // ===== LINK PARTNER =====
-    private async Task LinkPartnerAsync(Client newClient, string nationalId)
-    {
-        var partner = await _db.Clients
-            .FirstOrDefaultAsync(c => c.NationalId == nationalId && c.Id != newClient.Id);
-
-        if (partner == null) return;
-
-        newClient.LinkedPartnerId = partner.Id;
-        partner.LinkedPartnerId = newClient.Id;
-        await _db.SaveChangesAsync();
     }
 
     // ===== GENERATE TOKEN =====
